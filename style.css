@@ -1,4 +1,5 @@
 :root {
+    color-scheme: dark; 
     --bg-color: #0d1117;
     --card-bg: #161b22;
     --border-color: #30363d;
@@ -20,10 +21,62 @@ body { background-color: var(--bg-color); color: var(--text-primary); font-famil
 .form-control:focus, .form-select:focus { background-color: #0d1117; border-color: var(--theme-blue); color: #fff; box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25); }
 .text-muted { color: var(--text-muted) !important; }
 
+option, optgroup { background-color: var(--card-bg); color: var(--text-primary); }
+
 .val-expense { color: var(--theme-red); font-weight: bold; }
 .val-income { color: var(--theme-orange); font-weight: bold; }
 .val-exercise { color: var(--theme-info); font-weight: bold; }
 .val-life { color: var(--theme-purple); font-weight: bold; }
 .val-growth { color: var(--theme-cyan); font-weight: bold; }
 
-/* Banner, Heatmap, FAB, Tables 等詳細 CSS 沿用原始結構，為節省對話長度已略 */
+.quote-container { background-size: cover; background-position: center; border: 1px solid var(--border-color); border-left: 5px solid var(--theme-blue); border-radius: 12px; width: 100%; min-height: 140px; display: flex; align-items: center; position: relative; overflow: hidden; cursor: pointer; user-select: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.quote-container:active { transform: scale(0.98); opacity: 0.9; }
+.quote-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(13, 17, 23, 0.95) 0%, rgba(13, 17, 23, 0.4) 100%); z-index: 1; }
+.quote-content-layer { position: relative; z-index: 2; padding: 25px; width: 100%; }
+.quote-text { font-size: 1.15rem; font-weight: 500; color: #fff; font-family: serif; margin-bottom: 8px; line-height: 1.5; text-shadow: 0 2px 4px rgba(0,0,0,0.5); white-space: pre-line; }
+.quote-author { font-size: 0.9rem; color: #e6edf3; text-align: right; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
+.heatmap-container { overflow-x: auto; padding-bottom: 10px; }
+.heatmap-container::-webkit-scrollbar { height: 6px; }
+.heatmap-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.heatmap-grid { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-columns: 13px; grid-auto-flow: column; gap: 4px; width: max-content; }
+.heatmap-cell { width: 100%; height: 100%; border-radius: 3px; background-color: #21262d; outline: 1px solid rgba(255,255,255,0.02); transition: 0.1s; cursor: pointer; }
+.heatmap-cell:hover { transform: scale(1.3); z-index: 10; position: relative; border: 1px solid #fff; }
+.hc-0 { background-color: #161b22; }
+.hc-1 { background-color: #0e4429; }
+.hc-2 { background-color: #006d32; }
+.hc-3 { background-color: #26a641; }
+.hc-4 { background-color: #39d353; }
+
+.fab-container { position: fixed; bottom: 30px; right: 30px; z-index: 1000; }
+.fab-btn { background: linear-gradient(135deg, var(--theme-blue), #1f6feb); color: white; border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 28px; box-shadow: 0 4px 20px rgba(88, 166, 255, 0.4); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.3s; }
+.fab-btn:hover { transform: scale(1.1); }
+.fab-btn:active { transform: scale(0.9); }
+
+.modal-content { background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 16px; }
+.modal-header { border-bottom: 1px solid var(--border-color); }
+.modal-footer { border-top: 1px solid var(--border-color); }
+.btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+.nav-pills .nav-link { color: var(--text-muted); border-radius: 8px; margin-right: 8px; padding: 8px 16px; transition: 0.2s; border: 1px solid transparent; font-size: 0.9rem; white-space: nowrap;}
+.nav-pills .nav-link.active { background-color: #21262d; color: var(--theme-blue); border-color: var(--border-color); font-weight: bold; }
+.table-dark-custom { background-color: transparent; color: var(--text-primary); }
+.table-dark-custom th { background-color: #21262d; color: var(--text-muted); border-bottom: 2px solid var(--border-color); font-weight: 600; white-space: nowrap; }
+.table-dark-custom td { border-bottom: 1px solid var(--border-color); vertical-align: middle; font-size: 0.95rem; }
+.category-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background-color: rgba(255,255,255,0.1); color: #c9d1d9; margin-left: 6px; }
+
+.tier-card { border-radius: 12px; border-left: 6px solid #ccc; margin-bottom: 15px; background-color: #21262d; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 15px; }
+.tier-card.tier-s { border-left-color: #f1c40f; background: linear-gradient(90deg, rgba(241, 196, 15, 0.1) 0%, #21262d 100%); }
+.tier-card.tier-a { border-left-color: #e67e22; }
+.tier-card.tier-b { border-left-color: #3498db; }
+.tier-card.tier-f { border-left-color: #7f8c8d; filter: grayscale(30%); }
+.tier-title { font-size: 0.8rem; padding: 4px 12px; border-radius: 12px; font-weight: bold; display: inline-block; color: #fff;}
+.title-s { background: #f1c40f; text-shadow: 0px 1px 2px rgba(0,0,0,0.5); }
+.title-a { background: #e67e22; }
+.title-b { background: #3498db; }
+.title-f { background: #7f8c8d; }
+.life-coin { font-family: monospace; font-size: 1.5rem; font-weight: 800; color: #f1c40f; }
+
+.action-lock.disabled-mode { pointer-events: none; opacity: 0.3; filter: grayscale(100%); }
+
+#login-screen { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%); }
