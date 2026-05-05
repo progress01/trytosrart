@@ -8,6 +8,8 @@ let state = {
     currentUser: null, recordsData: [], isSubmitting: false, isManageMode: false,
     sysSettings: {
         coinRates: { money: 100, calorie: 100, learning: 30, habit: 10 },
+        // 💡 預算系統
+        budgets: { day: 500, week: 3500, month: 15000 },
         customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [] },
         quotes: []
     }
@@ -87,7 +89,6 @@ window.refreshQuote = () => {
     document.getElementById('quote-card').style.backgroundImage = `url('${randBg}')`;
 };
 
-// --- 💡 區間切換與 GA 自訂日期 ---
 const rangeSelect = document.getElementById('overview-range');
 const customStart = document.getElementById('custom-start-date');
 const customEnd = document.getElementById('custom-end-date');
@@ -115,6 +116,10 @@ function getRangeBounds() {
     const now = new Date();
     const todayStr = getLocalYMD(now);
     
+    // 💡 支援單日區間
+    if (rangeType === 'day') {
+        return { start: todayStr, end: todayStr, label: "今日", totalDays: 1 };
+    }
     if (rangeType === 'week') {
         const day = now.getDay();
         const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -173,6 +178,7 @@ function updateUI() {
 }
 
 function updateStats() {
+    const rangeType = rangeSelect.value;
     const bounds = getRangeBounds();
     document.querySelectorAll('.range-label').forEach(el => el.innerText = bounds.label);
     
@@ -191,10 +197,17 @@ function updateStats() {
         }
     });
 
-    document.getElementById('stat-saving').innerText = (tIncome - tExpense).toLocaleString();
-    document.getElementById('stat-saving').className = `mt-2 mb-0 ${(tIncome - tExpense) >= 0 ? 'val-income' : 'val-expense'}`;
+    // 💡 預算與結餘計算
+    let budget = state.sysSettings.budgets[rangeType] || 0;
+    if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays; // 自訂天數按日預算等比放大
+    
+    let balance = (budget + tIncome) - tExpense;
+    
+    document.getElementById('stat-saving').innerText = balance.toLocaleString();
+    document.getElementById('stat-saving').className = `mt-2 mb-0 ${balance >= 0 ? 'val-income' : 'val-expense'}`;
+    
     document.getElementById('stat-expense').innerText = tExpense.toLocaleString();
-    document.getElementById('stat-income').innerText = tIncome.toLocaleString();
+    document.getElementById('stat-budget').innerText = budget.toLocaleString();
 
     const deficit = tBurn - tFood; 
     document.getElementById('stat-calorie').innerText = deficit > 0 ? `+${deficit}` : deficit;
@@ -217,6 +230,7 @@ function updateStats() {
 }
 
 function renderAnalyses() {
+    const rangeType = rangeSelect.value;
     const bounds = getRangeBounds();
     let rangeRecords = state.recordsData
         .filter(r => r.date >= bounds.start && r.date <= bounds.end)
@@ -239,28 +253,34 @@ function renderAnalyses() {
     document.getElementById('ana-habit-total').innerText = `${habitCount} 次`;
     drawChart('chart-growth', 'growth', '累積成長 (次)', growthLabels, growthData, gTooltips, '#39c5bb', 'rgba(57,197,187,0.1)');
 
-    // 2. 💳 財務分析 (Finance)
+    // 2. 💳 財務分析 (Finance) - 圖表加入預算基準線的概念，改為顯示當前可用結餘
     let expenses = {}, topCat = "無", topAmt = 0;
-    let finLabels = [], finData = [], fTooltips = [], netWorth = 0;
+    let finLabels = [], finData = [], fTooltips = [];
+    
+    // 初始化起點：根據區間設定初始預算
+    let currentBalance = state.sysSettings.budgets[rangeType] || 0;
+    if (rangeType === 'custom') currentBalance = state.sysSettings.budgets.day * bounds.totalDays;
+    
     rangeRecords.forEach(r => {
         if (r.type === 'expense') {
             expenses[r.categoryText] = (expenses[r.categoryText] || 0) + r.amount;
             if (expenses[r.categoryText] > topAmt) { topAmt = expenses[r.categoryText]; topCat = r.categoryText; }
-            netWorth -= r.amount;
+            currentBalance -= r.amount;
             finLabels.push(r.date.substring(5));
-            finData.push(netWorth);
+            finData.push(currentBalance);
             fTooltips.push(`支出: ${r.amount} (${r.categoryText})`);
         }
         if (r.type === 'income') {
-            netWorth += r.amount;
+            currentBalance += r.amount;
             finLabels.push(r.date.substring(5));
-            finData.push(netWorth);
+            finData.push(currentBalance);
             fTooltips.push(`收入: ${r.amount} (${r.categoryText})`);
         }
     });
-    document.getElementById('ana-net-worth').innerText = netWorth >= 0 ? `+${netWorth}` : netWorth;
+    document.getElementById('ana-net-worth').innerText = currentBalance >= 0 ? `+${currentBalance.toLocaleString()}` : currentBalance.toLocaleString();
+    document.getElementById('ana-net-worth').className = `mb-0 ${currentBalance >= 0 ? 'val-income' : 'val-expense'}`;
     document.getElementById('ana-top-expense').innerText = `${topCat}`;
-    drawChart('chart-finance', 'finance', '累積淨值', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
+    drawChart('chart-finance', 'finance', '可用結餘', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
 
     // 3. 💪 健康分析 (Health)
     let hlLabels = [], healData = [], hTooltips = [], totalDeficit = 0;
@@ -285,7 +305,7 @@ function renderAnalyses() {
     else { document.getElementById('ana-fat-loss').innerText = `保持平衡`; }
     drawChart('chart-health', 'health', '累積赤字 (卡)', hlLabels, healData, hTooltips, '#3fb950', 'rgba(63,185,80,0.1)');
 
-    // 4. 🌟 狀態分析 (Life - Emoji Bars)
+    // 4. 🌟 狀態分析 (Life)
     let highEnergyDays = new Set(), sleepSum = 0, sleepCount = 0;
     let moodCounts = {5:0, 4:0, 3:0, 2:0, 1:0};
     rangeRecords.forEach(r => {
@@ -478,7 +498,79 @@ function renderHeatmap() {
     setTimeout(() => { document.getElementById('heatmap-scroller').scrollLeft = document.getElementById('heatmap-scroller').scrollWidth; }, 100);
 }
 
-// ... 下方程式碼與先前一致，包含設定載入 loadSettings()、儲存 saveSettingsData()、Auth 狀態監聽 onAuthStateChanged() 等等 ...
+// 💡 戰報支援每日目標動態調整
+window.generateReport = () => {
+    const rangeType = rangeSelect.value;
+    const bounds = getRangeBounds();
+    document.getElementById('report-range-label').innerText = bounds.label;
+    document.getElementById('report-user-name').innerText = `👤 ${state.currentUser.displayName}`;
+
+    let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
+    let dayStats = {}; 
+
+    state.recordsData.forEach(r => {
+        if (r.date >= bounds.start && r.date <= bounds.end) {
+            if(!dayStats[r.date]) dayStats[r.date] = { expense: 0, food: 0, goodDeeds: 0 };
+            if (r.type === 'expense') { tExpense += r.amount; dayStats[r.date].expense += r.amount; }
+            if (r.type === 'income') { tIncome += r.amount; dayStats[r.date].goodDeeds++; }
+            if (r.type === 'food') { tFood += r.amount; dayStats[r.date].food += r.amount; }
+            if (r.type === 'exercise') { tBurn += r.amount; dayStats[r.date].goodDeeds++; }
+            if (r.type === 'learning') { tLearning += r.amount; dayStats[r.date].goodDeeds++; }
+            if (r.type === 'habit') { tHabit += r.amount; dayStats[r.date].goodDeeds++; }
+        }
+    });
+
+    let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
+    Object.values(dayStats).forEach(ds => {
+        if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
+    });
+    const slackRate = Math.round((slackDays / bounds.totalDays) * 100);
+
+    let budget = state.sysSettings.budgets[rangeType] || 0;
+    if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
+    
+    let balance = (budget + tIncome) - tExpense;
+    let calorieDeficit = tBurn - tFood;
+    let lifeCoin = 0;
+
+    const rates = state.sysSettings.coinRates;
+    if(balance > 0) lifeCoin += Math.floor(balance / rates.money);
+    if(calorieDeficit > 0) lifeCoin += Math.floor(calorieDeficit / rates.calorie);
+    lifeCoin += (tLearning * rates.learning);
+    lifeCoin += (tHabit * rates.habit);
+
+    const card = document.getElementById('tier-card-container');
+    const titleEl = document.getElementById('report-tier-title');
+    card.className = "tier-card"; 
+    
+    // 💡 根據區間動態決定 S 級的能量幣門檻
+    let coinTarget = 100;
+    if (rangeType === 'day') coinTarget = 15;
+    if (rangeType === 'month') coinTarget = 400;
+    if (rangeType === 'custom') coinTarget = 15 * bounds.totalDays;
+
+    if (lifeCoin >= coinTarget * 1.5 && slackRate <= 20) {
+        tierClass = "tier-s"; titleClass = "title-s"; titleText = "👑 究極自律神人 (S)";
+    } else if (lifeCoin >= coinTarget) {
+        tierClass = "tier-a"; titleClass = "title-a"; titleText = "🌟 優秀發揮 (A)";
+    } else if (lifeCoin >= coinTarget * 0.5) {
+        tierClass = "tier-b"; titleClass = "title-b"; titleText = "🙂 穩步前進 (B)";
+    } else {
+        tierClass = "tier-f"; titleClass = "title-f"; titleText = "🌚 徹底放飛 (F)";
+    }
+
+    card.classList.add(tierClass);
+    titleEl.className = `tier-title ${titleClass}`;
+    titleEl.innerText = titleText;
+
+    document.getElementById('report-life-coin').innerText = lifeCoin;
+    document.getElementById('report-net-finance').innerText = balance >= 0 ? `+${balance.toLocaleString()}` : balance.toLocaleString();
+    document.getElementById('report-net-finance').className = `fw-bold fs-5 ${balance >= 0 ? 'text-success' : 'text-danger'}`;
+    document.getElementById('report-net-calorie').innerText = calorieDeficit >= 0 ? `+${calorieDeficit}` : calorieDeficit;
+    document.getElementById('report-net-calorie').className = `fw-bold fs-5 ${calorieDeficit >= 0 ? 'text-info' : 'text-danger'}`;
+    document.getElementById('report-learning-hrs').innerText = tLearning;
+    document.getElementById('report-slacking-rate').innerText = `${slackRate}%`;
+};
 
 async function loadSettings() {
     if (!state.currentUser) return;
@@ -486,6 +578,7 @@ async function loadSettings() {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         const data = docSnap.data();
+        state.sysSettings.budgets = { ...state.sysSettings.budgets, ...(data.budgets || {}) };
         state.sysSettings.coinRates = { ...state.sysSettings.coinRates, ...(data.coinRates || {}) };
         state.sysSettings.customCats = { ...state.sysSettings.customCats, ...(data.customCats || {}) };
         state.sysSettings.quotes = data.quotes || [];
@@ -500,6 +593,11 @@ async function saveSettingsData() {
 }
 
 function updateSettingsModalUI() {
+    // 預算
+    document.getElementById('set-budget-day').value = state.sysSettings.budgets?.day || 500;
+    document.getElementById('set-budget-week').value = state.sysSettings.budgets?.week || 3500;
+    document.getElementById('set-budget-month').value = state.sysSettings.budgets?.month || 15000;
+    // 匯率
     document.getElementById('set-rate-money').value = state.sysSettings.coinRates.money;
     document.getElementById('set-rate-calorie').value = state.sysSettings.coinRates.calorie;
     document.getElementById('set-rate-learn').value = state.sysSettings.coinRates.learning;
@@ -509,6 +607,11 @@ function updateSettingsModalUI() {
 }
 
 document.getElementById('btn-save-settings').addEventListener('click', async () => {
+    state.sysSettings.budgets = {
+        day: parseInt(document.getElementById('set-budget-day').value) || 500,
+        week: parseInt(document.getElementById('set-budget-week').value) || 3500,
+        month: parseInt(document.getElementById('set-budget-month').value) || 15000
+    };
     state.sysSettings.coinRates.money = parseInt(document.getElementById('set-rate-money').value) || 100;
     state.sysSettings.coinRates.calorie = parseInt(document.getElementById('set-rate-calorie').value) || 100;
     state.sysSettings.coinRates.learning = parseInt(document.getElementById('set-rate-learn').value) || 30;
@@ -516,6 +619,10 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
     await saveSettingsData();
     showToast("✅ 設定儲存成功");
     bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    
+    // 設定儲存後，強制更新首頁統計
+    updateUI();
+    if(document.getElementById('reportModal').classList.contains('show')) window.generateReport();
 });
 
 document.getElementById('btn-add-custom-cat').addEventListener('click', async () => {
@@ -557,6 +664,7 @@ document.getElementById('btn-add-quote').addEventListener('click', async () => {
     const quoteInput = document.getElementById('set-custom-quote');
     const text = quoteInput.value.trim();
     if (text && !state.sysSettings.quotes.includes(text)) {
+        if(!state.sysSettings.quotes) state.sysSettings.quotes = [];
         state.sysSettings.quotes.push(text);
         quoteInput.value = "";
         await saveSettingsData();
@@ -591,8 +699,8 @@ onAuthStateChanged(auth, async (user) => {
         
         const todayYMD = getLocalYMD();
         const dateInput = document.getElementById('input-date');
-        customStart.value = todayYMD; // 初始化 GA 起始時間
-        customEnd.value = todayYMD;   // 初始化 GA 結束時間
+        customStart.value = todayYMD;
+        customEnd.value = todayYMD;   
         dateInput.value = todayYMD;
         dateInput.max = todayYMD;
         
