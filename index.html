@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d1117">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -17,9 +18,21 @@
     </div>
 </div>
 
+<div class="modal fade" id="dynamicConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-4">
+                <h5 class="fw-bold mb-3" id="dc-title">確認操作</h5>
+                <p class="text-muted mb-4" id="dc-message" style="font-size: 0.95em;"></p>
+                <div class="d-flex flex-column gap-2" id="dc-buttons"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="login-screen">
     <h1 class="mb-3 fw-bold text-white">🧭 Life Tracker</h1>
-    <p class="text-muted mb-5">模組化 ✕ 高效能 ✕ 無壓追蹤</p>
+    <p class="text-muted mb-5">成就導向 ✕ 小數據 ✕ 無壓追蹤</p>
     <button id="btn-login" class="btn btn-outline-light btn-lg px-4 rounded-pill shadow-sm">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" class="me-2"> Google 登入
     </button>
@@ -27,14 +40,21 @@
 
 <div id="main-app" class="container-fluid py-4" style="display: none; max-width: 1000px;">
     
+    <!-- 💡 儀表板控制列 (含 GA 樣式自訂區間) -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-        <h3 class="fw-bold mb-0 d-flex align-items-center gap-2">
-            🧭 儀表板 
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <h3 class="fw-bold mb-0 me-2">🧭 儀表板</h3>
             <select id="overview-range" class="form-select form-select-sm shadow-sm action-lock" style="width: auto; font-size: 0.9rem;">
                 <option value="week" selected>本週</option>
                 <option value="month">本月</option>
+                <option value="custom">自訂區間...</option>
             </select>
-        </h3>
+            <!-- 自訂日期的輸入框 (預設隱藏) -->
+            <input type="date" id="custom-start-date" class="form-control form-control-sm shadow-sm action-lock d-none" style="width: auto;">
+            <span id="custom-date-sep" class="d-none text-muted">~</span>
+            <input type="date" id="custom-end-date" class="form-control form-control-sm shadow-sm action-lock d-none" style="width: auto;">
+        </div>
+
         <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary action-lock" data-bs-toggle="modal" data-bs-target="#settingsModal">⚙️ 設定</button>
             <button class="btn btn-sm fw-bold action-lock" style="background-color: var(--theme-purple); color: white;" data-bs-toggle="modal" data-bs-target="#reportModal" id="btn-generate-report">🏆 戰報</button>
@@ -42,6 +62,7 @@
         </div>
     </div>
 
+    <!-- 景點與金句 Banner -->
     <div class="quote-container mb-4 action-lock" id="quote-card" title="👆 點擊隨機切換">
         <div class="quote-overlay"></div>
         <div class="quote-content-layer">
@@ -68,7 +89,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-custom p-3 border-top border-cyan border-3 h-100" style="border-top-color: var(--theme-cyan);">
                 <div class="text-muted small"><span class="range-label">區間</span>自我成長</div>
-                <h4 class="mt-2 mb-1 val-growth"><span id="stat-learning">0</span> <span class="fs-6 text-muted fw-normal">次微接觸</span></h4>
+                <h4 class="mt-2 mb-1 val-growth"><span id="stat-learning">0</span> <span class="fs-6 text-muted fw-normal">次接觸</span></h4>
                 <div class="small text-muted mt-1">習慣打卡：<span id="stat-habit" class="fw-bold text-white">0</span> 次</div>
             </div>
         </div>
@@ -83,14 +104,14 @@
         </div>
     </div>
 
-    <!-- 歷史紀錄與批次管理 -->
+    <!-- 歷史紀錄與圖表分析區塊 -->
     <div class="card card-custom p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <ul class="nav nav-pills border-bottom border-secondary pb-2 mb-0 flex-grow-1" id="pills-tab" role="tablist">
-                <li class="nav-item"><button class="nav-link active action-lock" data-bs-toggle="pill" data-bs-target="#content-growth" type="button">🌱 成長足跡</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-life" type="button">🌟 狀態足跡</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-finance" type="button">💳 財務足跡</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-health" type="button">💪 健康足跡</button></li>
+                <li class="nav-item"><button class="nav-link active action-lock" data-bs-toggle="pill" data-bs-target="#content-growth" type="button">🌱 成長</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-life" type="button">🌟 狀態</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-finance" type="button">💳 財務</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-health" type="button">💪 健康</button></li>
             </ul>
             <button class="btn btn-sm btn-outline-danger ms-2" id="btn-toggle-manage">☑️ 批次管理</button>
         </div>
@@ -103,17 +124,45 @@
             </div>
         </div>
 
-        <div class="tab-content flex-grow-1">
+        <div class="tab-content flex-grow-1 mt-2">
             <div class="tab-pane fade show active h-100" id="content-growth">
+                <div class="row g-2 mb-3 text-center action-lock">
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">總微學習</div><h5 class="val-growth mb-0" id="ana-learn-total">0 次</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">習慣達標</div><h5 class="val-growth mb-0" id="ana-habit-total">0 次</h5></div></div>
+                </div>
+                <div class="mb-3 p-2 bg-dark rounded border border-secondary action-lock" style="height: 180px;"><canvas id="chart-growth"></canvas></div>
                 <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-growth-body"></tbody></table></div>
             </div>
+
             <div class="tab-pane fade h-100" id="content-life">
+                <div class="row g-2 mb-3 text-center action-lock">
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">高能量天數 (>=4)</div><h5 class="val-life mb-0" id="ana-high-energy">0 天</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">平均睡眠</div><h5 class="val-life mb-0" id="ana-sleep-avg">0 小時</h5></div></div>
+                    <div class="col-12">
+                        <div class="p-3 bg-dark rounded border border-secondary text-start">
+                            <div class="text-muted small mb-2">情緒能量分佈 (次數)</div>
+                            <div id="ana-mood-bars" class="d-flex flex-column gap-1"></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-life-body"></tbody></table></div>
             </div>
+
             <div class="tab-pane fade h-100" id="content-finance">
+                <div class="row g-2 mb-3 text-center action-lock">
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">期間累積淨值</div><h5 class="val-income mb-0" id="ana-net-worth">0</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">支出最兇項目</div><h5 class="val-expense mb-0 text-truncate px-1" id="ana-top-expense">無</h5></div></div>
+                </div>
+                <div class="mb-3 p-2 bg-dark rounded border border-secondary action-lock" style="height: 180px;"><canvas id="chart-finance"></canvas></div>
                 <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-finance-body"></tbody></table></div>
             </div>
+
             <div class="tab-pane fade h-100" id="content-health">
+                <div class="row g-2 mb-3 text-center action-lock">
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">累積熱量赤字</div><h5 class="val-exercise mb-0" id="ana-total-deficit">0</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">成就換算</div><h5 class="val-exercise mb-0 text-truncate px-1" id="ana-fat-loss">無</h5></div></div>
+                </div>
+                <div class="mb-3 p-2 bg-dark rounded border border-secondary action-lock" style="height: 180px;"><canvas id="chart-health"></canvas></div>
                 <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-health-body"></tbody></table></div>
             </div>
         </div>
@@ -121,7 +170,7 @@
 
     <!-- 長期軌跡熱力圖 -->
     <div class="card card-custom p-3 mt-4 mb-4">
-        <h6 class="fw-bold mb-2 text-muted">✨ 長期軌跡 (近一年)</h6>
+        <h6 class="fw-bold mb-2 text-muted">✨ 活躍熱力圖 (近一年)</h6>
         <div class="heatmap-container" id="heatmap-scroller">
             <div class="heatmap-grid" id="heatmap-grid"></div>
         </div>
@@ -133,18 +182,6 @@
 </div>
 
 <!-- ================= 所有 Modal ================= -->
-<!-- 動態確認彈窗 -->
-<div class="modal fade" id="dynamicConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-body text-center p-4">
-                <h5 class="fw-bold mb-3" id="dc-title">確認操作</h5>
-                <p class="text-muted mb-4" id="dc-message" style="font-size: 0.95em;"></p>
-                <div class="d-flex flex-column gap-2" id="dc-buttons"></div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- ⚙️ 系統設定 Modal -->
 <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
@@ -186,14 +223,22 @@
                     <input type="text" class="form-control form-control-sm" id="set-cat-name" placeholder="分類名稱" maxlength="12">
                     <button class="btn btn-sm btn-outline-primary text-nowrap" id="btn-add-custom-cat">新增</button>
                 </div>
-                <ul class="list-group list-group-flush border border-secondary rounded" id="custom-cat-list" style="font-size: 0.85rem; max-height: 150px; overflow-y: auto;"></ul>
+                <ul class="list-group list-group-flush border border-secondary rounded mb-4" id="custom-cat-list" style="font-size: 0.85rem; max-height: 150px; overflow-y: auto;"></ul>
 
-                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3 mt-4" style="color: var(--theme-blue);">💬 自訂金句庫</h6>
+                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3" style="color: var(--theme-blue);">💬 自訂金句庫</h6>
                 <div class="mb-2 d-flex gap-2">
                     <input type="text" class="form-control form-control-sm" id="set-custom-quote" placeholder="格式: 句子 -- 作者" maxlength="100">
                     <button class="btn btn-sm btn-outline-primary w-auto text-nowrap" id="btn-add-quote">新增</button>
                 </div>
-                <ul class="list-group list-group-flush border border-secondary rounded" id="custom-quote-list" style="font-size: 0.85rem; max-height: 150px; overflow-y: auto;"></ul>
+                <ul class="list-group list-group-flush border border-secondary rounded mb-4" id="custom-quote-list" style="font-size: 0.85rem; max-height: 150px; overflow-y: auto;"></ul>
+
+                <!-- 💡 新增：CSV 資料匯出 -->
+                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3" style="color: var(--theme-blue);">📦 資料管理</h6>
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-success w-100 fw-bold py-2" id="btn-export-csv">📥 匯出所有足跡 (CSV)</button>
+                    <div class="small text-muted mt-2 text-center">匯出近一年紀錄，可用 Excel 或 Python 進行深度分析。</div>
+                </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -238,10 +283,10 @@
                     </div>
                     <div class="mb-3"><select class="form-select" id="input-category"></select></div>
                     <div class="mb-3" id="amount-container">
-                        <input type="number" step="0.1" min="0" max="9999999" class="form-control form-control-lg text-center fw-bold" id="input-amount" placeholder="數值" required>
+                        <input type="number" step="0.1" min="0" class="form-control form-control-lg text-center fw-bold" id="input-amount" placeholder="數值" required>
                     </div>
                     <div class="mb-3">
-                        <input type="text" class="form-control" id="input-note" placeholder="備註細節 (選填)" maxlength="20">
+                        <input type="text" class="form-control" id="input-note" placeholder="備註細節 (選填)" maxlength="30">
                     </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold py-2" style="background-color: var(--theme-blue); border:none;">💾 儲存紀錄</button>
                 </form>
@@ -296,9 +341,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 </script>
 <script type="module" src="app.js"></script>
 </body>
