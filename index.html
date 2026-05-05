@@ -5,93 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Life Tracker | 系統架構版</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            /* 💡 魔法指令：強制手機原生選單與日期選擇器使用暗黑模式，解決白底白字問題 */
-            color-scheme: dark; 
-            
-            --bg-color: #0d1117;
-            --card-bg: #161b22;
-            --border-color: #30363d;
-            --text-primary: #c9d1d9;
-            --text-muted: #8b949e;
-            --theme-green: #238636;
-            --theme-blue: #58a6ff;
-            --theme-orange: #d29922;
-            --theme-red: #f85149;
-            --theme-purple: #a371f7;
-            --theme-info: #3fb950;
-            --theme-cyan: #39c5bb;
-        }
-
-        body { background-color: var(--bg-color); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; overflow-x: hidden; padding-bottom: 80px; }
-        
-        .card-custom { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .form-control, .form-select { background-color: #0d1117; border: 1px solid var(--border-color); color: var(--text-primary); }
-        .form-control:focus, .form-select:focus { background-color: #0d1117; border-color: var(--theme-blue); color: #fff; box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25); }
-        .text-muted { color: var(--text-muted) !important; }
-        
-        /* 確保下拉選單在各種裝置上都有底色 */
-        option, optgroup { background-color: var(--card-bg); color: var(--text-primary); }
-        
-        .val-expense { color: var(--theme-red); font-weight: bold; }
-        .val-income { color: var(--theme-orange); font-weight: bold; }
-        .val-exercise { color: var(--theme-info); font-weight: bold; }
-        .val-life { color: var(--theme-purple); font-weight: bold; }
-        .val-growth { color: var(--theme-cyan); font-weight: bold; }
-
-        .quote-container { background-size: cover; background-position: center; border: 1px solid var(--border-color); border-left: 5px solid var(--theme-blue); border-radius: 12px; width: 100%; min-height: 140px; display: flex; align-items: center; position: relative; overflow: hidden; cursor: pointer; user-select: none; transition: 0.3s; }
-        .quote-container:active { transform: scale(0.98); opacity: 0.9; }
-        .quote-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(13, 17, 23, 0.95) 0%, rgba(13, 17, 23, 0.4) 100%); z-index: 1; }
-        .quote-content-layer { position: relative; z-index: 2; padding: 25px; width: 100%; }
-        .quote-text { font-size: 1.15rem; font-weight: 500; color: #fff; font-family: serif; margin-bottom: 8px; line-height: 1.5; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .quote-author { font-size: 0.9rem; color: #e6edf3; text-align: right; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-
-        .heatmap-container { overflow-x: auto; padding-bottom: 10px; }
-        .heatmap-container::-webkit-scrollbar { height: 6px; }
-        .heatmap-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-        .heatmap-grid { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-columns: 13px; grid-auto-flow: column; gap: 4px; width: max-content; }
-        .heatmap-cell { width: 100%; height: 100%; border-radius: 3px; background-color: #21262d; outline: 1px solid rgba(255,255,255,0.02); transition: 0.1s; cursor: pointer; }
-        .heatmap-cell:hover { transform: scale(1.3); z-index: 10; position: relative; border: 1px solid #fff; }
-        .hc-0 { background-color: #161b22; }
-        .hc-1 { background-color: #0e4429; }
-        .hc-2 { background-color: #006d32; }
-        .hc-3 { background-color: #26a641; }
-        .hc-4 { background-color: #39d353; }
-
-        .fab-container { position: fixed; bottom: 30px; right: 30px; z-index: 1000; }
-        .fab-btn { background: linear-gradient(135deg, var(--theme-blue), #1f6feb); color: white; border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 28px; box-shadow: 0 4px 20px rgba(88, 166, 255, 0.4); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.3s; }
-        .fab-btn:hover { transform: scale(1.1); }
-        .fab-btn:active { transform: scale(0.9); }
-
-        .modal-content { background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 16px; }
-        .modal-header { border-bottom: 1px solid var(--border-color); }
-        .modal-footer { border-top: 1px solid var(--border-color); }
-        .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
-
-        .nav-pills .nav-link { color: var(--text-muted); border-radius: 8px; margin-right: 8px; padding: 8px 16px; transition: 0.2s; border: 1px solid transparent; font-size: 0.9rem; white-space: nowrap;}
-        .nav-pills .nav-link.active { background-color: #21262d; color: var(--theme-blue); border-color: var(--border-color); font-weight: bold; }
-        .table-dark-custom { background-color: transparent; color: var(--text-primary); }
-        .table-dark-custom th { background-color: #21262d; color: var(--text-muted); border-bottom: 2px solid var(--border-color); font-weight: 600; white-space: nowrap; }
-        .table-dark-custom td { border-bottom: 1px solid var(--border-color); vertical-align: middle; font-size: 0.95rem; }
-        .category-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background-color: rgba(255,255,255,0.1); color: #c9d1d9; margin-left: 6px; }
-
-        .tier-card { border-radius: 12px; border-left: 6px solid #ccc; margin-bottom: 15px; background-color: #21262d; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 15px; }
-        .tier-card.tier-s { border-left-color: #f1c40f; background: linear-gradient(90deg, rgba(241, 196, 15, 0.1) 0%, #21262d 100%); }
-        .tier-card.tier-a { border-left-color: #e67e22; }
-        .tier-card.tier-b { border-left-color: #3498db; }
-        .tier-card.tier-f { border-left-color: #7f8c8d; filter: grayscale(30%); }
-        .tier-title { font-size: 0.8rem; padding: 4px 12px; border-radius: 12px; font-weight: bold; display: inline-block; color: #fff;}
-        .title-s { background: #f1c40f; text-shadow: 0px 1px 2px rgba(0,0,0,0.5); }
-        .title-a { background: #e67e22; }
-        .title-b { background: #3498db; }
-        .title-f { background: #7f8c8d; }
-        .life-coin { font-family: monospace; font-size: 1.5rem; font-weight: 800; color: #f1c40f; }
-
-        .action-lock.disabled-mode { pointer-events: none; opacity: 0.3; filter: grayscale(100%); }
-
-        #login-screen { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%); }
-    </style>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
 </head>
 <body>
 
@@ -103,13 +19,12 @@
 
 <div id="login-screen">
     <h1 class="mb-3 fw-bold text-white">🧭 Life Tracker</h1>
-    <p class="text-muted mb-5">系統化 ✕ 自由度 ✕ 無壓追蹤</p>
+    <p class="text-muted mb-5">模組化 ✕ 高效能 ✕ 無壓追蹤</p>
     <button id="btn-login" class="btn btn-outline-light btn-lg px-4 rounded-pill shadow-sm">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" class="me-2"> Google 登入
     </button>
 </div>
 
-<!-- 主程式區塊 -->
 <div id="main-app" class="container-fluid py-4" style="display: none; max-width: 1000px;">
     
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -122,21 +37,19 @@
         </h3>
         <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary action-lock" data-bs-toggle="modal" data-bs-target="#settingsModal">⚙️ 設定</button>
-            <button class="btn btn-sm fw-bold action-lock" style="background-color: var(--theme-purple); color: white;" data-bs-toggle="modal" data-bs-target="#reportModal" onclick="generateReport()">🏆 戰報</button>
+            <button class="btn btn-sm fw-bold action-lock" style="background-color: var(--theme-purple); color: white;" data-bs-toggle="modal" data-bs-target="#reportModal" id="btn-generate-report">🏆 戰報</button>
             <button id="btn-logout" class="btn btn-sm btn-outline-secondary rounded-pill px-3 action-lock">登出</button>
         </div>
     </div>
 
-    <!-- 景點與金句 Banner -->
-    <div class="quote-container mb-4 action-lock" id="quote-card" onclick="refreshQuote()">
+    <div class="quote-container mb-4 action-lock" id="quote-card" title="👆 點擊隨機切換">
         <div class="quote-overlay"></div>
         <div class="quote-content-layer">
-            <div class="quote-text" id="q-text">Loading...</div>
+            <div class="quote-text" id="q-text">載入中...</div>
             <div class="quote-author" id="q-author"></div>
         </div>
     </div>
 
-    <!-- 區間數據統計區 -->
     <div class="row g-3 mb-4 action-lock">
         <div class="col-6 col-md-3">
             <div class="card card-custom p-3 border-top border-warning border-3 h-100">
@@ -155,7 +68,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-custom p-3 border-top border-cyan border-3 h-100" style="border-top-color: var(--theme-cyan);">
                 <div class="text-muted small"><span class="range-label">區間</span>自我成長</div>
-                <h4 class="mt-2 mb-1 val-growth"><span id="stat-learning">0</span> <span class="fs-6 text-muted fw-normal">次微學習</span></h4>
+                <h4 class="mt-2 mb-1 val-growth"><span id="stat-learning">0</span> <span class="fs-6 text-muted fw-normal">次微接觸</span></h4>
                 <div class="small text-muted mt-1">習慣打卡：<span id="stat-habit" class="fw-bold text-white">0</span> 次</div>
             </div>
         </div>
@@ -170,14 +83,14 @@
         </div>
     </div>
 
-    <!-- 歷史紀錄 -->
+    <!-- 歷史紀錄與批次管理 -->
     <div class="card card-custom p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <ul class="nav nav-pills border-bottom border-secondary pb-2 mb-0 flex-grow-1" id="pills-tab" role="tablist">
-                <li class="nav-item"><button class="nav-link active action-lock" id="tab-growth" data-bs-toggle="pill" data-bs-target="#content-growth" type="button">🌱 成長</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" id="tab-life" data-bs-toggle="pill" data-bs-target="#content-life" type="button">🌟 狀態</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" id="tab-finance" data-bs-toggle="pill" data-bs-target="#content-finance" type="button">💳 財務</button></li>
-                <li class="nav-item"><button class="nav-link action-lock" id="tab-health" data-bs-toggle="pill" data-bs-target="#content-health" type="button">💪 健康</button></li>
+                <li class="nav-item"><button class="nav-link active action-lock" data-bs-toggle="pill" data-bs-target="#content-growth" type="button">🌱 成長足跡</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-life" type="button">🌟 狀態足跡</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-finance" type="button">💳 財務足跡</button></li>
+                <li class="nav-item"><button class="nav-link action-lock" data-bs-toggle="pill" data-bs-target="#content-health" type="button">💪 健康足跡</button></li>
             </ul>
             <button class="btn btn-sm btn-outline-danger ms-2" id="btn-toggle-manage">☑️ 批次管理</button>
         </div>
@@ -192,28 +105,21 @@
 
         <div class="tab-content flex-grow-1">
             <div class="tab-pane fade show active h-100" id="content-growth">
-                <div class="table-responsive tab-table-container">
-                    <table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-growth-body"></tbody></table>
-                </div>
+                <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-growth-body"></tbody></table></div>
             </div>
             <div class="tab-pane fade h-100" id="content-life">
-                <div class="table-responsive tab-table-container">
-                    <table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-life-body"></tbody></table>
-                </div>
+                <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-life-body"></tbody></table></div>
             </div>
             <div class="tab-pane fade h-100" id="content-finance">
-                <div class="table-responsive tab-table-container">
-                    <table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-finance-body"></tbody></table>
-                </div>
+                <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-finance-body"></tbody></table></div>
             </div>
             <div class="tab-pane fade h-100" id="content-health">
-                <div class="table-responsive tab-table-container">
-                    <table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-health-body"></tbody></table>
-                </div>
+                <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-health-body"></tbody></table></div>
             </div>
         </div>
     </div>
 
+    <!-- 長期軌跡熱力圖 -->
     <div class="card card-custom p-3 mt-4 mb-4">
         <h6 class="fw-bold mb-2 text-muted">✨ 長期軌跡 (近一年)</h6>
         <div class="heatmap-container" id="heatmap-scroller">
@@ -221,16 +127,12 @@
         </div>
     </div>
 
-    <!-- FAB 浮動按鈕 -->
     <div class="fab-container action-lock">
         <button class="fab-btn" data-bs-toggle="modal" data-bs-target="#recordModal">＋</button>
     </div>
 </div>
 
-<!-- ==========================================
-     所有 Modal (彈窗) 移至根目錄，避免層級失效 
-     ========================================== -->
-
+<!-- ================= 所有 Modal ================= -->
 <!-- 動態確認彈窗 -->
 <div class="modal fade" id="dynamicConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -253,7 +155,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body pt-0">
-                
                 <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3 mt-2" style="color: var(--theme-blue);">📈 戰報匯率設定 (生活幣換算)</h6>
                 <div class="row g-2 mb-4">
                     <div class="col-6">
@@ -265,7 +166,7 @@
                         <input type="number" class="form-control form-control-sm" id="set-rate-calorie" placeholder="100" min="1">
                     </div>
                     <div class="col-6">
-                        <label class="form-label small text-muted mb-1">微學習/閱讀 (例: 1次=30幣)</label>
+                        <label class="form-label small text-muted mb-1">微接觸 (例: 1次=30幣)</label>
                         <input type="number" class="form-control form-control-sm" id="set-rate-learn" placeholder="30" min="0">
                     </div>
                     <div class="col-6">
@@ -282,7 +183,6 @@
                         <option value="learning">📚 學習</option>
                         <option value="habit">✅ 習慣</option>
                     </select>
-                    <!-- 防呆：限制字數，避免撐破版面 -->
                     <input type="text" class="form-control form-control-sm" id="set-cat-name" placeholder="分類名稱" maxlength="12">
                     <button class="btn btn-sm btn-outline-primary text-nowrap" id="btn-add-custom-cat">新增</button>
                 </div>
@@ -314,7 +214,6 @@
             <div class="modal-body">
                 <form id="form-record">
                     <div class="mb-3">
-                        <!-- 防呆：動態設定 max 為今天 -->
                         <input type="date" class="form-control" id="input-date" required>
                     </div>
                     <div class="mb-3">
@@ -339,11 +238,10 @@
                     </div>
                     <div class="mb-3"><select class="form-select" id="input-category"></select></div>
                     <div class="mb-3" id="amount-container">
-                        <!-- 防呆：限制不可輸入負數 -->
-                        <input type="number" step="0.1" min="0" class="form-control form-control-lg text-center fw-bold" id="input-amount" placeholder="數值" required>
+                        <input type="number" step="0.1" min="0" max="9999999" class="form-control form-control-lg text-center fw-bold" id="input-amount" placeholder="數值" required>
                     </div>
                     <div class="mb-3">
-                        <input type="text" class="form-control" id="input-note" placeholder="備註細節 (選填)" maxlength="30">
+                        <input type="text" class="form-control" id="input-note" placeholder="備註細節 (選填)" maxlength="20">
                     </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold py-2" style="background-color: var(--theme-blue); border:none;">💾 儲存紀錄</button>
                 </form>
@@ -397,603 +295,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, where, getDocs, doc, deleteDoc, getDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAIY9PU-bDLktkTpLSmFKRe1uepvWCKEiU",
-        authDomain: "maplestoryboss.firebaseapp.com",
-        projectId: "maplestoryboss",
-        storageBucket: "maplestoryboss.firebasestorage.app",
-        messagingSenderId: "198034430854",
-        appId: "1:198034430854:web:527ffcee039e223b972a07",
-        measurementId: "G-SG0DN633FC"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-
-    const COLLECTION_RECORDS = "LifeApp_Records"; 
-    const COLLECTION_SETTINGS = "LifeApp_Settings"; 
-
-    let currentUser = null;
-    let recordsData = [];
-    let isManageMode = false; 
-
-    // 系統基礎設定
-    let sysSettings = {
-        coinRates: { money: 100, calorie: 100, learning: 30, habit: 10 },
-        customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [] },
-        quotes: []
-    };
-
-    const DEFAULT_CAT_MAP = {
-        'learning': [ {val: 'eng_micro', text: '🔤 英文微接觸'}, {val: 'read_page', text: '📖 翻開書本/文獻'}, {val: 'tech_doc', text: '💻 架構與技術實作'} ],
-        'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 冥想'}, {val: 'clean', text: '🧹 整理環境'} ],
-        'expense': [ {val: 'food', text: '餐飲'}, {val: 'transport', text: '交通'}, {val: 'shopping', text: '購物'}, {val: 'entertainment', text: '娛樂'} ],
-        'income': [ {val: 'salary', text: '薪資'}, {val: 'bonus', text: '獎金'}, {val: 'invest', text: '投資'} ],
-        'food': [ {val: 'meal', text: '正餐'}, {val: 'snack', text: '零食/甜點'}, {val: 'drink', text: '飲料'} ],
-        'exercise': [ {val: 'cardio', text: '有氧'}, {val: 'weight', text: '重訓'}, {val: 'stretch', text: '伸展/瑜珈'} ],
-        'sleep': [ {val: 'night', text: '主睡眠'}, {val: 'nap', text: '午休小睡'} ],
-        'mood': [ {val: '5', text: '🤩 充滿活力 (5分)'}, {val: '4', text: '🙂 穩定順暢 (4分)'}, {val: '3', text: '😐 平淡一般 (3分)'}, {val: '2', text: '😫 疲憊低迷 (2分)'}, {val: '1', text: '😭 徹底耗盡 (1分)'} ]
-    };
-
-    const DEFAULT_QUOTES = [
-        "不管讀多深、讀多久，只要啟動了閱讀行為，就是前進。 -- 微學習心法",
-        "別因為一次的失誤，就否定了之前所有的努力。 -- 覺察日記",
-        "真正的自律，是允許自己偶爾的脆弱，然後繼續前進。 -- 心理學",
-        "系統架構的優美，在於把複雜藏在看不見的地方，把簡單留給自己。 -- 開發者日常",
-        "允許偶爾的空白，找回節奏比維持完美更重要。 -- 習慣心理學"
-    ];
-
-    window.showConfirm = function(title, message, buttons) {
-        document.getElementById('dc-title').innerText = title;
-        document.getElementById('dc-message').innerHTML = message;
-        const btnContainer = document.getElementById('dc-buttons');
-        btnContainer.innerHTML = '';
-        buttons.forEach(btn => {
-            const buttonEl = document.createElement('button');
-            buttonEl.className = `btn fw-bold ${btn.class}`;
-            buttonEl.innerHTML = btn.text;
-            if(btn.dismiss) buttonEl.setAttribute('data-bs-dismiss', 'modal');
-            if(btn.onClick) {
-                buttonEl.addEventListener('click', () => {
-                    btn.onClick();
-                    bootstrap.Modal.getInstance(document.getElementById('dynamicConfirmModal')).hide();
-                });
-            }
-            btnContainer.appendChild(buttonEl);
-        });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('dynamicConfirmModal')).show();
-    };
-
-    const showToast = (msg, type = "success") => {
-        const toastEl = document.getElementById('liveToast');
-        document.getElementById('toast-body').innerText = msg;
-        toastEl.className = `toast align-items-center border-0 text-bg-${type}`;
-        new bootstrap.Toast(toastEl, { delay: 2500 }).show();
-    };
-
-    const getLocalYMD = (date = new Date()) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
-
-    // 💡 建立專屬純風景圖庫 (精選無人像、無畫作的高畫質 Unsplash 靜態庫)
-    const BG_IMAGES = [
-        "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80", // 壯麗群山
-        "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80", // 森林陽光
-        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80", // 清澈海灘
-        "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=800&q=80", // 靜謐星空
-        "https://images.unsplash.com/photo-1474015977011-fb317070189a?auto=format&fit=crop&w=800&q=80", // 峽谷風光
-        "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=800&q=80", // 壯闊雪山
-        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80", // 綠色山丘
-        "https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=800&q=80"  // 瀑布流水
-    ];
-
-    window.refreshQuote = () => {
-        // 1. 處理金句抽籤
-        const combinedQuotes = [...DEFAULT_QUOTES, ...(sysSettings.quotes || [])];
-        const randQ = combinedQuotes[Math.floor(Math.random() * combinedQuotes.length)].split("--");
-        document.getElementById('q-text').innerText = randQ[0].trim();
-        document.getElementById('q-author').innerText = randQ[1] ? `-- ${randQ[1].trim()}` : '';
-        
-        // 2. 處理背景抽籤 (從我們嚴格控管的純風景圖庫中抽取)
-        const randBg = BG_IMAGES[Math.floor(Math.random() * BG_IMAGES.length)];
-        document.getElementById('quote-card').style.backgroundImage = `url('${randBg}')`;
-    };
-
-    async function loadSettings() {
-        if (!currentUser) return;
-        const docRef = doc(db, COLLECTION_SETTINGS, currentUser.uid + "_life");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            sysSettings.coinRates = { ...sysSettings.coinRates, ...(data.coinRates || {}) };
-            sysSettings.customCats = { ...sysSettings.customCats, ...(data.customCats || {}) };
-            sysSettings.quotes = data.quotes || [];
-        }
-        updateSettingsModalUI();
-    }
-
-    async function saveSettingsData() {
-        const docRef = doc(db, COLLECTION_SETTINGS, currentUser.uid + "_life");
-        await setDoc(docRef, sysSettings, { merge: true });
-        updateFormUI(); 
-    }
-
-    function updateSettingsModalUI() {
-        document.getElementById('set-rate-money').value = sysSettings.coinRates.money;
-        document.getElementById('set-rate-calorie').value = sysSettings.coinRates.calorie;
-        document.getElementById('set-rate-learn').value = sysSettings.coinRates.learning;
-        document.getElementById('set-rate-habit').value = sysSettings.coinRates.habit;
-        renderCustomCatList();
-        renderQuoteList();
-    }
-
-    document.getElementById('btn-save-settings').addEventListener('click', async () => {
-        sysSettings.coinRates.money = parseInt(document.getElementById('set-rate-money').value) || 100;
-        sysSettings.coinRates.calorie = parseInt(document.getElementById('set-rate-calorie').value) || 100;
-        sysSettings.coinRates.learning = parseInt(document.getElementById('set-rate-learn').value) || 30;
-        sysSettings.coinRates.habit = parseInt(document.getElementById('set-rate-habit').value) || 10;
-        await saveSettingsData();
-        showToast("✅ 設定儲存成功");
-        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-        if(document.getElementById('reportModal').classList.contains('show')) generateReport();
-    });
-
-    document.getElementById('btn-add-custom-cat').addEventListener('click', async () => {
-        const type = document.getElementById('set-cat-type').value;
-        const name = document.getElementById('set-cat-name').value.trim();
-        if (name && !sysSettings.customCats[type].includes(name)) {
-            sysSettings.customCats[type].push(name);
-            document.getElementById('set-cat-name').value = "";
-            await saveSettingsData();
-            renderCustomCatList();
-        }
-    });
-
-    window.removeCustomCat = async (type, index) => {
-        sysSettings.customCats[type].splice(index, 1);
-        await saveSettingsData();
-        renderCustomCatList();
-    };
-
-    function renderCustomCatList() {
-        const list = document.getElementById('custom-cat-list');
-        list.innerHTML = "";
-        const typeSelect = document.getElementById('set-cat-type');
-        const typeNames = Array.from(typeSelect.options).reduce((acc, opt) => ({...acc, [opt.value]: opt.text}), {});
-
-        Object.keys(sysSettings.customCats).forEach(type => {
-            sysSettings.customCats[type].forEach((catName, idx) => {
-                const li = document.createElement('li');
-                li.className = "list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary";
-                li.innerHTML = `<span><span class="badge bg-secondary me-2">${typeNames[type] || type}</span> ${catName}</span>
-                                <button class="btn btn-sm btn-outline-danger py-0" onclick="removeCustomCat('${type}', ${idx})">✖</button>`;
-                list.appendChild(li);
-            });
-        });
-    }
-    document.getElementById('set-cat-type').addEventListener('change', renderCustomCatList);
-
-    document.getElementById('btn-add-quote').addEventListener('click', async () => {
-        const quoteInput = document.getElementById('set-custom-quote');
-        const text = quoteInput.value.trim();
-        if (text && !sysSettings.quotes.includes(text)) {
-            if(!sysSettings.quotes) sysSettings.quotes = [];
-            sysSettings.quotes.push(text);
-            quoteInput.value = "";
-            await saveSettingsData();
-            renderQuoteList();
-            refreshQuote();
-        }
-    });
-
-    window.removeQuote = async (index) => {
-        sysSettings.quotes.splice(index, 1);
-        await saveSettingsData();
-        renderQuoteList();
-    };
-
-    function renderQuoteList() {
-        const list = document.getElementById('custom-quote-list');
-        list.innerHTML = "";
-        (sysSettings.quotes || []).forEach((qText, idx) => {
-            const li = document.createElement('li');
-            li.className = "list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary";
-            li.innerHTML = `<span class="text-truncate me-2">${qText}</span>
-                            <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeQuote(${idx})">✖</button>`;
-            list.appendChild(li);
-        });
-    }
-
-    const typeSelect = document.getElementById('input-type');
-    const categorySelect = document.getElementById('input-category');
-    const amtInput = document.getElementById('input-amount');
-
-    function updateFormUI() {
-        const type = typeSelect.value;
-        let optionsHtml = DEFAULT_CAT_MAP[type].map(c => `<option value="${c.val}">${c.text}</option>`).join('');
-        
-        if (sysSettings.customCats[type] && sysSettings.customCats[type].length > 0) {
-            optionsHtml += `<optgroup label="自訂分類">`;
-            optionsHtml += sysSettings.customCats[type].map(c => `<option value="custom_${c}">${c}</option>`).join('');
-            optionsHtml += `</optgroup>`;
-        }
-        categorySelect.innerHTML = optionsHtml;
-        
-        if (type === 'mood' || type === 'habit' || type === 'learning') {
-            document.getElementById('amount-container').style.display = 'none';
-            amtInput.removeAttribute('required');
-            amtInput.value = type === 'mood' ? "0" : "1"; 
-        } else {
-            document.getElementById('amount-container').style.display = 'block';
-            amtInput.setAttribute('required', 'true');
-            amtInput.value = "";
-        }
-    }
-    typeSelect.addEventListener('change', updateFormUI);
-
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            document.getElementById('user-greeting').innerText = `| Hi, ${user.displayName}`;
-            
-            const todayYMD = getLocalYMD();
-            document.getElementById('input-date').value = todayYMD;
-            document.getElementById('input-date').max = todayYMD;
-            
-            await loadSettings();
-            updateFormUI(); 
-            refreshQuote();
-            await fetchData();
-        } else {
-            currentUser = null;
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('main-app').style.display = 'none';
-        }
-    });
-
-    document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        showConfirm("登出", "確定要登出您的帳號嗎？", [
-            { text: "登出", class: "btn-danger", onClick: () => signOut(auth) },
-            { text: "取消", class: "btn-light", dismiss: true }
-        ]);
-    });
-
-    async function fetchData() {
-        if (!currentUser) return;
-        try {
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const LIFE_UID = currentUser.uid + "_life"; 
-            const q = query(collection(db, COLLECTION_RECORDS), where("uid", "==", LIFE_UID));
-            const snapshot = await getDocs(q);
-            recordsData = [];
-            snapshot.forEach(doc => {
-                let data = doc.data();
-                data.id = doc.id;
-                if (data.date >= getLocalYMD(oneYearAgo)) recordsData.push(data);
-            });
-            recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
-            updateUI();
-        } catch (error) { showToast("讀取資料失敗", "danger"); }
-    }
-
-    document.getElementById('form-record').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = e.target.querySelector('button[type="submit"]');
-        btn.disabled = true; btn.innerText = "儲存中...";
-
-        const LIFE_UID = currentUser.uid + "_life";
-        const type = typeSelect.value;
-        const category = categorySelect.value;
-        let categoryText = categorySelect.options[categorySelect.selectedIndex].text;
-        
-        if(category.startsWith("custom_")) categoryText = category.replace("custom_", "🔸 ");
-
-        let rawAmount = parseFloat(amtInput.value);
-        if (isNaN(rawAmount) || rawAmount < 0) rawAmount = 0; // 防呆：避免出現負數或錯誤值
-
-        let amountToSave = rawAmount;
-        if (type === 'mood') amountToSave = parseFloat(category);
-        if (type === 'habit' || type === 'learning') amountToSave = 1;
-
-        const data = {
-            uid: LIFE_UID,
-            date: document.getElementById('input-date').value,
-            type: type,
-            category: category,
-            categoryText: categoryText,
-            amount: amountToSave,
-            note: document.getElementById('input-note').value.trim() || "",
-            timestamp: Date.now()
-        };
-
-        try {
-            await addDoc(collection(db, COLLECTION_RECORDS), data);
-            amtInput.value = ""; document.getElementById('input-note').value = "";
-            bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
-            showToast("✅ 紀錄成功！");
-            await fetchData();
-        } catch (err) { showToast("新增失敗", "danger"); } 
-        finally { btn.disabled = false; btn.innerText = "💾 儲存紀錄"; }
-    });
-
-    document.getElementById('btn-toggle-manage').addEventListener('click', () => {
-        isManageMode = true;
-        document.getElementById('btn-toggle-manage').classList.add('d-none');
-        document.getElementById('manage-bar').classList.remove('d-none');
-        document.querySelectorAll('.action-lock').forEach(el => el.classList.add('disabled-mode'));
-        renderTables();
-    });
-
-    document.getElementById('btn-cancel-manage').addEventListener('click', () => {
-        isManageMode = false;
-        document.getElementById('btn-toggle-manage').classList.remove('d-none');
-        document.getElementById('manage-bar').classList.add('d-none');
-        document.querySelectorAll('.action-lock').forEach(el => el.classList.remove('disabled-mode'));
-        renderTables();
-    });
-
-    document.getElementById('btn-batch-delete').addEventListener('click', () => {
-        const checkedBoxes = document.querySelectorAll(".cb-record-item:checked");
-        if(checkedBoxes.length === 0) { showToast("請先勾選項目！", "warning"); return; }
-        
-        showConfirm("批次刪除", `確定要刪除選取的 <strong class="text-danger">${checkedBoxes.length}</strong> 筆足跡嗎？`, [
-            { text: "💥 確認批次刪除", class: "btn-danger", onClick: async () => {
-                const btn = document.getElementById('btn-batch-delete');
-                btn.disabled = true; btn.innerText = "刪除中...";
-                try {
-                    const batch = writeBatch(db);
-                    checkedBoxes.forEach(cb => batch.delete(doc(db, COLLECTION_RECORDS, cb.value)));
-                    await batch.commit();
-                    document.getElementById('btn-cancel-manage').click();
-                    showToast(`✅ 成功刪除 ${checkedBoxes.length} 筆資料`, "success");
-                    await fetchData();
-                } catch(e) { showToast("批次刪除失敗", "danger"); }
-                finally { btn.disabled = false; btn.innerText = "刪除選取項目"; }
-            }},
-            { text: "取消", class: "btn-light", dismiss: true }
-        ]);
-    });
-
-    function updateUI() {
-        updateStats(); renderHeatmap(); renderTables();
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
-    }
-
-    document.getElementById('overview-range').addEventListener('change', updateStats);
-
-    function getRangeBounds(rangeType) {
-        const now = new Date();
-        const todayStr = getLocalYMD(now);
-        if (rangeType === 'week') {
-            const day = now.getDay();
-            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-            const startWeek = new Date(now.setDate(diff));
-            const endWeek = new Date(startWeek);
-            endWeek.setDate(startWeek.getDate() + 6);
-            return { start: getLocalYMD(startWeek), end: getLocalYMD(endWeek), label: "本週", totalDays: 7 };
-        }
-        if (rangeType === 'month') {
-            const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-            return { start: todayStr.substring(0, 7) + "-01", end: todayStr.substring(0, 7) + "-31", label: "本月", totalDays: totalDays };
-        }
-    }
-
-    function updateStats() {
-        const rangeType = document.getElementById('overview-range').value;
-        const bounds = getRangeBounds(rangeType);
-        document.querySelectorAll('.range-label').forEach(el => el.innerText = bounds.label);
-        
-        let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
-        let activeDates = new Set();
-
-        recordsData.forEach(r => {
-            if (r.date >= bounds.start && r.date <= bounds.end) {
-                activeDates.add(r.date);
-                if (r.type === 'expense') tExpense += r.amount;
-                if (r.type === 'income') tIncome += r.amount;
-                if (r.type === 'food') tFood += r.amount;
-                if (r.type === 'exercise') tBurn += r.amount;
-                if (r.type === 'learning') tLearning += r.amount;
-                if (r.type === 'habit') tHabit += r.amount;
-            }
-        });
-
-        document.getElementById('stat-saving').innerText = (tIncome - tExpense).toLocaleString();
-        document.getElementById('stat-saving').className = `mt-2 mb-0 ${(tIncome - tExpense) >= 0 ? 'val-income' : 'val-expense'}`;
-        document.getElementById('stat-expense').innerText = tExpense.toLocaleString();
-        document.getElementById('stat-income').innerText = tIncome.toLocaleString();
-
-        const deficit = tBurn - tFood; 
-        document.getElementById('stat-calorie').innerText = deficit > 0 ? `+${deficit}` : deficit;
-        document.getElementById('stat-calorie').className = `mt-2 mb-0 ${deficit >= 0 ? 'val-exercise' : 'val-expense'}`;
-        document.getElementById('stat-food').innerText = tFood;
-        document.getElementById('stat-burn').innerText = tBurn;
-
-        document.getElementById('stat-learning').innerText = tLearning;
-        document.getElementById('stat-habit').innerText = tHabit;
-
-        const activeDaysCount = activeDates.size;
-        const totalDays = bounds.totalDays;
-        const progressPct = (activeDaysCount / totalDays) * 100;
-        
-        document.getElementById('stat-active-days').innerText = activeDaysCount;
-        document.getElementById('stat-total-days').innerText = totalDays;
-        const bar = document.getElementById('stat-active-bar');
-        bar.style.width = `${progressPct}%`;
-        bar.className = `progress-bar ${progressPct >= 80 ? 'bg-success' : (progressPct >= 50 ? 'bg-warning' : 'bg-secondary')}`;
-    }
-
-    window.generateReport = () => {
-        const rangeType = document.getElementById('overview-range').value;
-        const bounds = getRangeBounds(rangeType);
-        document.getElementById('report-range-label').innerText = bounds.label;
-        document.getElementById('report-user-name').innerText = `👤 ${currentUser.displayName}`;
-
-        let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
-        let dayStats = {}; 
-
-        recordsData.forEach(r => {
-            if (r.date >= bounds.start && r.date <= bounds.end) {
-                if(!dayStats[r.date]) dayStats[r.date] = { expense: 0, food: 0, goodDeeds: 0 };
-                if (r.type === 'expense') { tExpense += r.amount; dayStats[r.date].expense += r.amount; }
-                if (r.type === 'income') { tIncome += r.amount; dayStats[r.date].goodDeeds++; }
-                if (r.type === 'food') { tFood += r.amount; dayStats[r.date].food += r.amount; }
-                if (r.type === 'exercise') { tBurn += r.amount; dayStats[r.date].goodDeeds++; }
-                if (r.type === 'learning') { tLearning += r.amount; dayStats[r.date].goodDeeds++; }
-                if (r.type === 'habit') { tHabit += r.amount; dayStats[r.date].goodDeeds++; }
-            }
-        });
-
-        let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
-        Object.values(dayStats).forEach(ds => {
-            if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
-        });
-        const slackRate = Math.round((slackDays / bounds.totalDays) * 100);
-
-        let saving = tIncome - tExpense;
-        let calorieDeficit = tBurn - tFood;
-        let lifeCoin = 0;
-
-        const rates = sysSettings.coinRates;
-        if(saving > 0) lifeCoin += Math.floor(saving / rates.money);
-        if(calorieDeficit > 0) lifeCoin += Math.floor(calorieDeficit / rates.calorie);
-        lifeCoin += (tLearning * rates.learning);
-        lifeCoin += (tHabit * rates.habit);
-
-        const card = document.getElementById('tier-card-container');
-        const titleEl = document.getElementById('report-tier-title');
-        card.className = "tier-card"; 
-        
-        let tierClass, titleClass, titleText;
-        let coinTarget = rangeType === 'week' ? 100 : 400; 
-
-        if (lifeCoin >= coinTarget * 1.5 && slackRate <= 20) {
-            tierClass = "tier-s"; titleClass = "title-s"; titleText = "👑 究極自律神人 (S)";
-        } else if (lifeCoin >= coinTarget) {
-            tierClass = "tier-a"; titleClass = "title-a"; titleText = "🌟 優秀發揮 (A)";
-        } else if (lifeCoin >= coinTarget * 0.5) {
-            tierClass = "tier-b"; titleClass = "title-b"; titleText = "🙂 穩步前進 (B)";
-        } else {
-            tierClass = "tier-f"; titleClass = "title-f"; titleText = "🌚 徹底放飛 (F)";
-        }
-
-        card.classList.add(tierClass);
-        titleEl.className = `tier-title ${titleClass}`;
-        titleEl.innerText = titleText;
-
-        document.getElementById('report-life-coin').innerText = lifeCoin;
-        document.getElementById('report-net-finance').innerText = saving >= 0 ? `+${saving}` : saving;
-        document.getElementById('report-net-finance').className = `fw-bold fs-5 ${saving >= 0 ? 'text-success' : 'text-danger'}`;
-        document.getElementById('report-net-calorie').innerText = calorieDeficit >= 0 ? `+${calorieDeficit}` : calorieDeficit;
-        document.getElementById('report-net-calorie').className = `fw-bold fs-5 ${calorieDeficit >= 0 ? 'text-info' : 'text-danger'}`;
-        document.getElementById('report-learning-hrs').innerText = tLearning;
-        document.getElementById('report-slacking-rate').innerText = `${slackRate}%`;
-    };
-
-    function renderTables() {
-        const finBody = document.getElementById('table-finance-body');
-        const healBody = document.getElementById('table-health-body');
-        const growBody = document.getElementById('table-growth-body');
-        const lifeBody = document.getElementById('table-life-body');
-        
-        let finHtml = "", healHtml = "", growHtml = "", lifeHtml = "";
-
-        const typeMap = {
-            'expense': { icon: '💸', color: 'val-expense', unit: '' },
-            'income': { icon: '💰', color: 'val-income', unit: '' },
-            'food': { icon: '🍱', color: 'val-food', unit: ' 大卡' },
-            'exercise': { icon: '🏃', color: 'val-exercise', unit: ' 大卡' },
-            'learning': { icon: '📚', color: 'val-growth', unit: ' 次' },
-            'habit': { icon: '✅', color: 'val-growth', unit: ' 次' },
-            'sleep': { icon: '💤', color: 'val-life', unit: ' 小時' },
-            'mood': { icon: '🌟', color: 'val-life', unit: ' 分' }
-        };
-
-        recordsData.forEach(r => {
-            const conf = typeMap[r.type];
-            let displayVal = (r.type === 'expense' || r.type === 'income') ? r.amount.toLocaleString() : r.amount;
-            let noteStr = r.note ? `<br><small class="text-muted">${r.note}</small>` : "";
-            if (r.type === 'mood') displayVal = ['😭', '😫', '😐', '🙂', '🤩'][r.amount - 1] || r.amount;
-
-            const opCell = isManageMode 
-                ? `<td class="text-center"><input type="checkbox" class="form-check-input cb-record-item" value="${r.id}" style="cursor: pointer; transform: scale(1.2);"></td>`
-                : ``;
-
-            const tr = `
-                <tr>
-                    <td class="text-muted" style="white-space: nowrap;">${r.date.substring(5)}</td>
-                    <td class="text-start">
-                        ${conf.icon} <span class="category-badge">${r.categoryText || '未分類'}</span>
-                        ${noteStr}
-                    </td>
-                    <td class="text-end pe-3 ${conf.color}">${displayVal}${conf.unit}</td>
-                    ${opCell}
-                </tr>
-            `;
-            
-            if (r.type === 'expense' || r.type === 'income') finHtml += tr;
-            else if (r.type === 'food' || r.type === 'exercise') healHtml += tr;
-            else if (r.type === 'learning' || r.type === 'habit') growHtml += tr;
-            else lifeHtml += tr;
-        });
-
-        const thead = `<tr><th>日期</th><th>項目足跡</th><th class="text-end pe-3">數值</th>${isManageMode ? '<th class="text-center">選取</th>' : ''}</tr>`;
-
-        finBody.innerHTML = finHtml ? thead + finHtml : `<tr><td colspan="4" class="text-muted text-center py-4">尚無足跡</td></tr>`;
-        healBody.innerHTML = healHtml ? thead + healHtml : `<tr><td colspan="4" class="text-muted text-center py-4">尚無足跡</td></tr>`;
-        growBody.innerHTML = growHtml ? thead + growHtml : `<tr><td colspan="4" class="text-muted text-center py-4">尚無足跡</td></tr>`;
-        lifeBody.innerHTML = lifeHtml ? thead + lifeHtml : `<tr><td colspan="4" class="text-muted text-center py-4">尚無足跡</td></tr>`;
-    }
-
-    function renderHeatmap() {
-        const container = document.getElementById('heatmap-grid');
-        container.innerHTML = "";
-        let dateCounts = {};
-        recordsData.forEach(r => { dateCounts[r.date] = (dateCounts[r.date] || 0) + 1; });
-
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 365);
-        startDate.setDate(startDate.getDate() - startDate.getDay()); 
-
-        const today = new Date();
-        const fragment = document.createDocumentFragment();
-
-        let ptr = new Date(startDate);
-        while (ptr <= today) {
-            const dStr = getLocalYMD(ptr);
-            const count = dateCounts[dStr] || 0;
-            const cell = document.createElement('div');
-            cell.className = 'heatmap-cell';
-            if (count === 1) cell.classList.add('hc-1');
-            else if (count === 2) cell.classList.add('hc-2');
-            else if (count >= 3 && count <= 4) cell.classList.add('hc-3');
-            else if (count > 4) cell.classList.add('hc-4');
-            else cell.classList.add('hc-0');
-
-            cell.setAttribute('data-bs-toggle', 'tooltip');
-            cell.setAttribute('data-bs-title', count > 0 ? `${dStr} : 累積了 ${count} 步足跡` : `${dStr} : 尚無足跡`);
-            fragment.appendChild(cell);
-            ptr.setDate(ptr.getDate() + 1);
-        }
-        container.appendChild(fragment);
-
-        setTimeout(() => { document.getElementById('heatmap-scroller').scrollLeft = document.getElementById('heatmap-scroller').scrollWidth; }, 100);
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
     }
 </script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
