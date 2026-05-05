@@ -8,7 +8,6 @@ let state = {
     currentUser: null, recordsData: [], isSubmitting: false, isManageMode: false,
     sysSettings: {
         coinRates: { money: 100, calorie: 100, learning: 30, habit: 10 },
-        // 💡 預算系統
         budgets: { day: 500, week: 3500, month: 15000 },
         customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [] },
         quotes: []
@@ -54,6 +53,7 @@ const getLocalYMD = (date = new Date()) => {
 
 const showToast = (msg, type = "success") => {
     const toastEl = document.getElementById('liveToast');
+    if(!toastEl) return;
     document.getElementById('toast-body').innerText = msg;
     toastEl.className = `toast align-items-center border-0 text-bg-${type}`;
     new bootstrap.Toast(toastEl, { delay: 2500 }).show();
@@ -95,6 +95,7 @@ const customEnd = document.getElementById('custom-end-date');
 const customSep = document.getElementById('custom-date-sep');
 
 function toggleCustomDateInputs() {
+    if(!rangeSelect || !customStart) return;
     if (rangeSelect.value === 'custom') {
         customStart.classList.remove('d-none');
         customEnd.classList.remove('d-none');
@@ -107,19 +108,17 @@ function toggleCustomDateInputs() {
     updateUI(); 
 }
 
-rangeSelect.addEventListener('change', toggleCustomDateInputs);
-customStart.addEventListener('change', updateUI);
-customEnd.addEventListener('change', updateUI);
+if(rangeSelect) rangeSelect.addEventListener('change', toggleCustomDateInputs);
+if(customStart) customStart.addEventListener('change', updateUI);
+if(customEnd) customEnd.addEventListener('change', updateUI);
 
 function getRangeBounds() {
+    if(!rangeSelect) return { start: getLocalYMD(), end: getLocalYMD(), label: "今日", totalDays: 1 };
     const rangeType = rangeSelect.value;
     const now = new Date();
     const todayStr = getLocalYMD(now);
     
-    // 💡 支援單日區間
-    if (rangeType === 'day') {
-        return { start: todayStr, end: todayStr, label: "今日", totalDays: 1 };
-    }
+    if (rangeType === 'day') return { start: todayStr, end: todayStr, label: "今日", totalDays: 1 };
     if (rangeType === 'week') {
         const day = now.getDay();
         const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -146,6 +145,7 @@ function updateFormUI() {
     const typeSelect = document.getElementById('input-type');
     const categorySelect = document.getElementById('input-category');
     const amtInput = document.getElementById('input-amount');
+    if(!typeSelect || !categorySelect) return;
     
     const type = typeSelect.value;
     let optionsHtml = DEFAULT_CAT_MAP[type].map(c => `<option value="${c.val}">${c.text}</option>`).join('');
@@ -167,7 +167,8 @@ function updateFormUI() {
         amtInput.value = "";
     }
 }
-document.getElementById('input-type').addEventListener('change', updateFormUI);
+const typeSelectEl = document.getElementById('input-type');
+if(typeSelectEl) typeSelectEl.addEventListener('change', updateFormUI);
 
 function updateUI() {
     updateStats(); 
@@ -178,7 +179,7 @@ function updateUI() {
 }
 
 function updateStats() {
-    const rangeType = rangeSelect.value;
+    const rangeType = rangeSelect ? rangeSelect.value : 'day';
     const bounds = getRangeBounds();
     document.querySelectorAll('.range-label').forEach(el => el.innerText = bounds.label);
     
@@ -197,40 +198,46 @@ function updateStats() {
         }
     });
 
-    // 💡 預算與結餘計算
     let budget = state.sysSettings.budgets[rangeType] || 0;
-    if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays; // 自訂天數按日預算等比放大
-    
+    if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
     let balance = (budget + tIncome) - tExpense;
     
-    document.getElementById('stat-saving').innerText = balance.toLocaleString();
-    document.getElementById('stat-saving').className = `mt-2 mb-0 ${balance >= 0 ? 'val-income' : 'val-expense'}`;
+    const savingEl = document.getElementById('stat-saving');
+    if(savingEl) {
+        savingEl.innerText = balance.toLocaleString();
+        savingEl.className = `mt-2 mb-0 ${balance >= 0 ? 'val-income' : 'val-expense'}`;
+    }
     
-    document.getElementById('stat-expense').innerText = tExpense.toLocaleString();
-    document.getElementById('stat-budget').innerText = budget.toLocaleString();
+    if(document.getElementById('stat-expense')) document.getElementById('stat-expense').innerText = tExpense.toLocaleString();
+    if(document.getElementById('stat-budget')) document.getElementById('stat-budget').innerText = budget.toLocaleString();
 
     const deficit = tBurn - tFood; 
-    document.getElementById('stat-calorie').innerText = deficit > 0 ? `+${deficit}` : deficit;
-    document.getElementById('stat-calorie').className = `mt-2 mb-0 ${deficit >= 0 ? 'val-exercise' : 'val-expense'}`;
-    document.getElementById('stat-food').innerText = tFood;
-    document.getElementById('stat-burn').innerText = tBurn;
+    const calorieEl = document.getElementById('stat-calorie');
+    if(calorieEl) {
+        calorieEl.innerText = deficit > 0 ? `+${deficit}` : deficit;
+        calorieEl.className = `mt-2 mb-0 ${deficit >= 0 ? 'val-exercise' : 'val-expense'}`;
+    }
+    if(document.getElementById('stat-food')) document.getElementById('stat-food').innerText = tFood;
+    if(document.getElementById('stat-burn')) document.getElementById('stat-burn').innerText = tBurn;
 
-    document.getElementById('stat-learning').innerText = tLearning;
-    document.getElementById('stat-habit').innerText = tHabit;
+    if(document.getElementById('stat-learning')) document.getElementById('stat-learning').innerText = tLearning;
+    if(document.getElementById('stat-habit')) document.getElementById('stat-habit').innerText = tHabit;
 
     const activeDaysCount = activeDates.size;
     const totalDays = bounds.totalDays;
     const progressPct = (activeDaysCount / totalDays) * 100;
     
-    document.getElementById('stat-active-days').innerText = activeDaysCount;
-    document.getElementById('stat-total-days').innerText = totalDays;
+    if(document.getElementById('stat-active-days')) document.getElementById('stat-active-days').innerText = activeDaysCount;
+    if(document.getElementById('stat-total-days')) document.getElementById('stat-total-days').innerText = totalDays;
     const bar = document.getElementById('stat-active-bar');
-    bar.style.width = `${progressPct}%`;
-    bar.className = `progress-bar ${progressPct >= 80 ? 'bg-success' : (progressPct >= 50 ? 'bg-warning' : 'bg-secondary')}`;
+    if(bar) {
+        bar.style.width = `${progressPct}%`;
+        bar.className = `progress-bar ${progressPct >= 80 ? 'bg-success' : (progressPct >= 50 ? 'bg-warning' : 'bg-secondary')}`;
+    }
 }
 
 function renderAnalyses() {
-    const rangeType = rangeSelect.value;
+    const rangeType = rangeSelect ? rangeSelect.value : 'day';
     const bounds = getRangeBounds();
     let rangeRecords = state.recordsData
         .filter(r => r.date >= bounds.start && r.date <= bounds.end)
@@ -249,15 +256,14 @@ function renderAnalyses() {
             gTooltips.push(r.note || r.categoryText);
         }
     });
-    document.getElementById('ana-learn-total').innerText = `${learnCount} 次`;
-    document.getElementById('ana-habit-total').innerText = `${habitCount} 次`;
+    if(document.getElementById('ana-learn-total')) document.getElementById('ana-learn-total').innerText = `${learnCount} 次`;
+    if(document.getElementById('ana-habit-total')) document.getElementById('ana-habit-total').innerText = `${habitCount} 次`;
     drawChart('chart-growth', 'growth', '累積成長 (次)', growthLabels, growthData, gTooltips, '#39c5bb', 'rgba(57,197,187,0.1)');
 
-    // 2. 💳 財務分析 (Finance) - 圖表加入預算基準線的概念，改為顯示當前可用結餘
+    // 2. 💳 財務分析 (Finance)
     let expenses = {}, topCat = "無", topAmt = 0;
     let finLabels = [], finData = [], fTooltips = [];
     
-    // 初始化起點：根據區間設定初始預算
     let currentBalance = state.sysSettings.budgets[rangeType] || 0;
     if (rangeType === 'custom') currentBalance = state.sysSettings.budgets.day * bounds.totalDays;
     
@@ -277,9 +283,12 @@ function renderAnalyses() {
             fTooltips.push(`收入: ${r.amount} (${r.categoryText})`);
         }
     });
-    document.getElementById('ana-net-worth').innerText = currentBalance >= 0 ? `+${currentBalance.toLocaleString()}` : currentBalance.toLocaleString();
-    document.getElementById('ana-net-worth').className = `mb-0 ${currentBalance >= 0 ? 'val-income' : 'val-expense'}`;
-    document.getElementById('ana-top-expense').innerText = `${topCat}`;
+    const anaNetWorth = document.getElementById('ana-net-worth');
+    if(anaNetWorth) {
+        anaNetWorth.innerText = currentBalance >= 0 ? `+${currentBalance.toLocaleString()}` : currentBalance.toLocaleString();
+        anaNetWorth.className = `mb-0 ${currentBalance >= 0 ? 'val-income' : 'val-expense'}`;
+    }
+    if(document.getElementById('ana-top-expense')) document.getElementById('ana-top-expense').innerText = `${topCat}`;
     drawChart('chart-finance', 'finance', '可用結餘', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
 
     // 3. 💪 健康分析 (Health)
@@ -298,11 +307,15 @@ function renderAnalyses() {
             hTooltips.push(`攝取: ${r.amount}`);
         }
     });
-    document.getElementById('ana-total-deficit').innerText = totalDeficit > 0 ? `+${totalDeficit}` : totalDeficit;
+    if(document.getElementById('ana-total-deficit')) document.getElementById('ana-total-deficit').innerText = totalDeficit > 0 ? `+${totalDeficit}` : totalDeficit;
+    
     let fatLost = (totalDeficit / 7700).toFixed(2);
-    if (fatLost > 0.05) { document.getElementById('ana-fat-loss').innerText = `🔥 甩掉 ${fatLost} kg`; } 
-    else if (totalDeficit > 0) { document.getElementById('ana-fat-loss').innerText = `🧋 抵消 ${Math.floor(totalDeficit/500)} 杯珍奶`; } 
-    else { document.getElementById('ana-fat-loss').innerText = `保持平衡`; }
+    const fatLossEl = document.getElementById('ana-fat-loss');
+    if(fatLossEl) {
+        if (fatLost > 0.05) { fatLossEl.innerText = `🔥 甩掉 ${fatLost} kg`; } 
+        else if (totalDeficit > 0) { fatLossEl.innerText = `🧋 抵消 ${Math.floor(totalDeficit/500)} 杯珍奶`; } 
+        else { fatLossEl.innerText = `保持平衡`; }
+    }
     drawChart('chart-health', 'health', '累積赤字 (卡)', hlLabels, healData, hTooltips, '#3fb950', 'rgba(63,185,80,0.1)');
 
     // 4. 🌟 狀態分析 (Life)
@@ -315,8 +328,8 @@ function renderAnalyses() {
         }
         if (r.type === 'sleep') { sleepSum += r.amount; sleepCount++; }
     });
-    document.getElementById('ana-high-energy').innerText = `${highEnergyDays.size} 天`;
-    document.getElementById('ana-sleep-avg').innerText = sleepCount > 0 ? (sleepSum/sleepCount).toFixed(1) + ' 小時' : '0 小時';
+    if(document.getElementById('ana-high-energy')) document.getElementById('ana-high-energy').innerText = `${highEnergyDays.size} 天`;
+    if(document.getElementById('ana-sleep-avg')) document.getElementById('ana-sleep-avg').innerText = sleepCount > 0 ? (sleepSum/sleepCount).toFixed(1) + ' 小時' : '0 小時';
 
     let moodTotal = Object.values(moodCounts).reduce((a, b) => a + b, 0) || 1;
     let moodHtml = '';
@@ -336,11 +349,16 @@ function renderAnalyses() {
             </div>
         `;
     });
-    document.getElementById('ana-mood-bars').innerHTML = moodHtml;
+    if(document.getElementById('ana-mood-bars')) document.getElementById('ana-mood-bars').innerHTML = moodHtml;
 }
 
 function drawChart(canvasId, instanceKey, label, labels, data, tooltips, borderColor, bgColor) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    // 💡 防呆：如果 Chart 沒載入，或是找不到 HTML 標籤（PWA 快取卡住），直接中斷不報錯
+    if (typeof Chart === 'undefined') return;
+    const canvasEl = document.getElementById(canvasId);
+    if (!canvasEl) return;
+    
+    const ctx = canvasEl.getContext('2d');
     if (chartInstances[instanceKey]) chartInstances[instanceKey].destroy();
     if(labels.length === 0) { labels = ['無']; data = [0]; tooltips = ['無資料']; }
 
@@ -371,48 +389,51 @@ function drawChart(canvasId, instanceKey, label, labels, data, tooltips, borderC
 }
 
 // 💡 匯出 CSV 邏輯
-document.getElementById('btn-export-csv').addEventListener('click', () => {
-    if (!state.recordsData || state.recordsData.length === 0) {
-        showToast("目前沒有資料可以匯出", "warning"); return;
-    }
-    const btn = document.getElementById('btn-export-csv');
-    const originalText = btn.innerText;
-    btn.innerText = "⏳ 處理中...";
-    btn.disabled = true;
+const btnExport = document.getElementById('btn-export-csv');
+if (btnExport) {
+    btnExport.addEventListener('click', () => {
+        if (!state.recordsData || state.recordsData.length === 0) {
+            showToast("目前沒有資料可以匯出", "warning"); return;
+        }
+        const originalText = btnExport.innerText;
+        btnExport.innerText = "⏳ 處理中...";
+        btnExport.disabled = true;
 
-    try {
-        let csvContent = "\uFEFF"; 
-        csvContent += "日期,類型(Type),次分類(Category),數值(Amount),備註細節(Note)\n";
+        try {
+            let csvContent = "\uFEFF"; 
+            csvContent += "日期,類型(Type),次分類(Category),數值(Amount),備註細節(Note)\n";
 
-        state.recordsData.forEach(r => {
-            let safeNote = r.note ? `"${r.note.replace(/"/g, '""').replace(/\n/g, ' ')}"` : "";
-            let row = `${r.date},${r.type},${r.categoryText || r.category},${r.amount},${safeNote}`;
-            csvContent += row + "\n";
-        });
+            state.recordsData.forEach(r => {
+                let safeNote = r.note ? `"${r.note.replace(/"/g, '""').replace(/\n/g, ' ')}"` : "";
+                let row = `${r.date},${r.type},${r.categoryText || r.category},${r.amount},${safeNote}`;
+                csvContent += row + "\n";
+            });
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `LifeTracker_Export_${getLocalYMD()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        showToast("✅ CSV 匯出成功！");
-    } catch (error) {
-        showToast("匯出失敗", "danger");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
-});
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `LifeTracker_Export_${getLocalYMD()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("✅ CSV 匯出成功！");
+        } catch (error) {
+            showToast("匯出失敗", "danger");
+        } finally {
+            btnExport.innerText = originalText;
+            btnExport.disabled = false;
+        }
+    });
+}
 
 function renderTables() {
     const finBody = document.getElementById('table-finance-body');
     const healBody = document.getElementById('table-health-body');
     const growBody = document.getElementById('table-growth-body');
     const lifeBody = document.getElementById('table-life-body');
+    if(!finBody) return;
     
     let finHtml = "", healHtml = "", growHtml = "", lifeHtml = "";
 
@@ -465,6 +486,7 @@ function renderTables() {
 
 function renderHeatmap() {
     const container = document.getElementById('heatmap-grid');
+    if(!container) return;
     container.innerHTML = "";
     let dateCounts = {};
     state.recordsData.forEach(r => { dateCounts[r.date] = (dateCounts[r.date] || 0) + 1; });
@@ -498,79 +520,84 @@ function renderHeatmap() {
     setTimeout(() => { document.getElementById('heatmap-scroller').scrollLeft = document.getElementById('heatmap-scroller').scrollWidth; }, 100);
 }
 
-// 💡 戰報支援每日目標動態調整
-window.generateReport = () => {
-    const rangeType = rangeSelect.value;
-    const bounds = getRangeBounds();
-    document.getElementById('report-range-label').innerText = bounds.label;
-    document.getElementById('report-user-name').innerText = `👤 ${state.currentUser.displayName}`;
+// 💡 戰報支援每日目標與變數宣告修復
+const btnReport = document.getElementById('btn-generate-report');
+if(btnReport) {
+    btnReport.addEventListener('click', () => {
+        const rangeType = rangeSelect ? rangeSelect.value : 'day';
+        const bounds = getRangeBounds();
+        document.getElementById('report-range-label').innerText = bounds.label;
+        document.getElementById('report-user-name').innerText = `👤 ${state.currentUser.displayName}`;
 
-    let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
-    let dayStats = {}; 
+        let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
+        let dayStats = {}; 
 
-    state.recordsData.forEach(r => {
-        if (r.date >= bounds.start && r.date <= bounds.end) {
-            if(!dayStats[r.date]) dayStats[r.date] = { expense: 0, food: 0, goodDeeds: 0 };
-            if (r.type === 'expense') { tExpense += r.amount; dayStats[r.date].expense += r.amount; }
-            if (r.type === 'income') { tIncome += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'food') { tFood += r.amount; dayStats[r.date].food += r.amount; }
-            if (r.type === 'exercise') { tBurn += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'learning') { tLearning += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'habit') { tHabit += r.amount; dayStats[r.date].goodDeeds++; }
+        state.recordsData.forEach(r => {
+            if (r.date >= bounds.start && r.date <= bounds.end) {
+                if(!dayStats[r.date]) dayStats[r.date] = { expense: 0, food: 0, goodDeeds: 0 };
+                if (r.type === 'expense') { tExpense += r.amount; dayStats[r.date].expense += r.amount; }
+                if (r.type === 'income') { tIncome += r.amount; dayStats[r.date].goodDeeds++; }
+                if (r.type === 'food') { tFood += r.amount; dayStats[r.date].food += r.amount; }
+                if (r.type === 'exercise') { tBurn += r.amount; dayStats[r.date].goodDeeds++; }
+                if (r.type === 'learning') { tLearning += r.amount; dayStats[r.date].goodDeeds++; }
+                if (r.type === 'habit') { tHabit += r.amount; dayStats[r.date].goodDeeds++; }
+            }
+        });
+
+        let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
+        Object.values(dayStats).forEach(ds => {
+            if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
+        });
+        const slackRate = Math.round((slackDays / bounds.totalDays) * 100);
+
+        let budget = state.sysSettings.budgets[rangeType] || 0;
+        if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
+        
+        let balance = (budget + tIncome) - tExpense;
+        let calorieDeficit = tBurn - tFood;
+        let lifeCoin = 0;
+
+        const rates = state.sysSettings.coinRates;
+        if(balance > 0) lifeCoin += Math.floor(balance / rates.money);
+        if(calorieDeficit > 0) lifeCoin += Math.floor(calorieDeficit / rates.calorie);
+        lifeCoin += (tLearning * rates.learning);
+        lifeCoin += (tHabit * rates.habit);
+
+        const card = document.getElementById('tier-card-container');
+        const titleEl = document.getElementById('report-tier-title');
+        card.className = "tier-card"; 
+        
+        // 💡 修復變數未宣告的 Bug
+        let tierClass, titleClass, titleText; 
+        
+        let coinTarget = 100;
+        if (rangeType === 'day') coinTarget = 15;
+        if (rangeType === 'month') coinTarget = 400;
+        if (rangeType === 'custom') coinTarget = 15 * bounds.totalDays;
+
+        if (lifeCoin >= coinTarget * 1.5 && slackRate <= 20) {
+            tierClass = "tier-s"; titleClass = "title-s"; titleText = "👑 究極自律神人 (S)";
+        } else if (lifeCoin >= coinTarget) {
+            tierClass = "tier-a"; titleClass = "title-a"; titleText = "🌟 優秀發揮 (A)";
+        } else if (lifeCoin >= coinTarget * 0.5) {
+            tierClass = "tier-b"; titleClass = "title-b"; titleText = "🙂 穩步前進 (B)";
+        } else {
+            tierClass = "tier-f"; titleClass = "title-f"; titleText = "🌚 徹底放飛 (F)";
         }
+
+        card.classList.add(tierClass);
+        titleEl.className = `tier-title ${titleClass}`;
+        titleEl.innerText = titleText;
+
+        document.getElementById('report-life-coin').innerText = lifeCoin;
+        document.getElementById('report-net-finance').innerText = balance >= 0 ? `+${balance.toLocaleString()}` : balance.toLocaleString();
+        document.getElementById('report-net-finance').className = `fw-bold fs-5 ${balance >= 0 ? 'text-success' : 'text-danger'}`;
+        document.getElementById('report-net-calorie').innerText = calorieDeficit >= 0 ? `+${calorieDeficit}` : calorieDeficit;
+        document.getElementById('report-net-calorie').className = `fw-bold fs-5 ${calorieDeficit >= 0 ? 'text-info' : 'text-danger'}`;
+        document.getElementById('report-learning-hrs').innerText = tLearning;
+        document.getElementById('report-slacking-rate').innerText = `${slackRate}%`;
     });
-
-    let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
-    Object.values(dayStats).forEach(ds => {
-        if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
-    });
-    const slackRate = Math.round((slackDays / bounds.totalDays) * 100);
-
-    let budget = state.sysSettings.budgets[rangeType] || 0;
-    if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
-    
-    let balance = (budget + tIncome) - tExpense;
-    let calorieDeficit = tBurn - tFood;
-    let lifeCoin = 0;
-
-    const rates = state.sysSettings.coinRates;
-    if(balance > 0) lifeCoin += Math.floor(balance / rates.money);
-    if(calorieDeficit > 0) lifeCoin += Math.floor(calorieDeficit / rates.calorie);
-    lifeCoin += (tLearning * rates.learning);
-    lifeCoin += (tHabit * rates.habit);
-
-    const card = document.getElementById('tier-card-container');
-    const titleEl = document.getElementById('report-tier-title');
-    card.className = "tier-card"; 
-    
-    // 💡 根據區間動態決定 S 級的能量幣門檻
-    let coinTarget = 100;
-    if (rangeType === 'day') coinTarget = 15;
-    if (rangeType === 'month') coinTarget = 400;
-    if (rangeType === 'custom') coinTarget = 15 * bounds.totalDays;
-
-    if (lifeCoin >= coinTarget * 1.5 && slackRate <= 20) {
-        tierClass = "tier-s"; titleClass = "title-s"; titleText = "👑 究極自律神人 (S)";
-    } else if (lifeCoin >= coinTarget) {
-        tierClass = "tier-a"; titleClass = "title-a"; titleText = "🌟 優秀發揮 (A)";
-    } else if (lifeCoin >= coinTarget * 0.5) {
-        tierClass = "tier-b"; titleClass = "title-b"; titleText = "🙂 穩步前進 (B)";
-    } else {
-        tierClass = "tier-f"; titleClass = "title-f"; titleText = "🌚 徹底放飛 (F)";
-    }
-
-    card.classList.add(tierClass);
-    titleEl.className = `tier-title ${titleClass}`;
-    titleEl.innerText = titleText;
-
-    document.getElementById('report-life-coin').innerText = lifeCoin;
-    document.getElementById('report-net-finance').innerText = balance >= 0 ? `+${balance.toLocaleString()}` : balance.toLocaleString();
-    document.getElementById('report-net-finance').className = `fw-bold fs-5 ${balance >= 0 ? 'text-success' : 'text-danger'}`;
-    document.getElementById('report-net-calorie').innerText = calorieDeficit >= 0 ? `+${calorieDeficit}` : calorieDeficit;
-    document.getElementById('report-net-calorie').className = `fw-bold fs-5 ${calorieDeficit >= 0 ? 'text-info' : 'text-danger'}`;
-    document.getElementById('report-learning-hrs').innerText = tLearning;
-    document.getElementById('report-slacking-rate').innerText = `${slackRate}%`;
-};
+}
 
 async function loadSettings() {
     if (!state.currentUser) return;
@@ -593,48 +620,55 @@ async function saveSettingsData() {
 }
 
 function updateSettingsModalUI() {
-    // 預算
-    document.getElementById('set-budget-day').value = state.sysSettings.budgets?.day || 500;
-    document.getElementById('set-budget-week').value = state.sysSettings.budgets?.week || 3500;
-    document.getElementById('set-budget-month').value = state.sysSettings.budgets?.month || 15000;
-    // 匯率
-    document.getElementById('set-rate-money').value = state.sysSettings.coinRates.money;
-    document.getElementById('set-rate-calorie').value = state.sysSettings.coinRates.calorie;
-    document.getElementById('set-rate-learn').value = state.sysSettings.coinRates.learning;
-    document.getElementById('set-rate-habit').value = state.sysSettings.coinRates.habit;
+    if(document.getElementById('set-budget-day')) {
+        document.getElementById('set-budget-day').value = state.sysSettings.budgets?.day || 500;
+        document.getElementById('set-budget-week').value = state.sysSettings.budgets?.week || 3500;
+        document.getElementById('set-budget-month').value = state.sysSettings.budgets?.month || 15000;
+        document.getElementById('set-rate-money').value = state.sysSettings.coinRates.money;
+        document.getElementById('set-rate-calorie').value = state.sysSettings.coinRates.calorie;
+        document.getElementById('set-rate-learn').value = state.sysSettings.coinRates.learning;
+        document.getElementById('set-rate-habit').value = state.sysSettings.coinRates.habit;
+    }
     renderCustomCatList();
     renderQuoteList();
 }
 
-document.getElementById('btn-save-settings').addEventListener('click', async () => {
-    state.sysSettings.budgets = {
-        day: parseInt(document.getElementById('set-budget-day').value) || 500,
-        week: parseInt(document.getElementById('set-budget-week').value) || 3500,
-        month: parseInt(document.getElementById('set-budget-month').value) || 15000
-    };
-    state.sysSettings.coinRates.money = parseInt(document.getElementById('set-rate-money').value) || 100;
-    state.sysSettings.coinRates.calorie = parseInt(document.getElementById('set-rate-calorie').value) || 100;
-    state.sysSettings.coinRates.learning = parseInt(document.getElementById('set-rate-learn').value) || 30;
-    state.sysSettings.coinRates.habit = parseInt(document.getElementById('set-rate-habit').value) || 10;
-    await saveSettingsData();
-    showToast("✅ 設定儲存成功");
-    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-    
-    // 設定儲存後，強制更新首頁統計
-    updateUI();
-    if(document.getElementById('reportModal').classList.contains('show')) window.generateReport();
-});
-
-document.getElementById('btn-add-custom-cat').addEventListener('click', async () => {
-    const type = document.getElementById('set-cat-type').value;
-    const name = document.getElementById('set-cat-name').value.trim();
-    if (name && !state.sysSettings.customCats[type].includes(name)) {
-        state.sysSettings.customCats[type].push(name);
-        document.getElementById('set-cat-name').value = "";
+const btnSaveSettings = document.getElementById('btn-save-settings');
+if(btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', async () => {
+        state.sysSettings.budgets = {
+            day: parseInt(document.getElementById('set-budget-day').value) || 500,
+            week: parseInt(document.getElementById('set-budget-week').value) || 3500,
+            month: parseInt(document.getElementById('set-budget-month').value) || 15000
+        };
+        state.sysSettings.coinRates.money = parseInt(document.getElementById('set-rate-money').value) || 100;
+        state.sysSettings.coinRates.calorie = parseInt(document.getElementById('set-rate-calorie').value) || 100;
+        state.sysSettings.coinRates.learning = parseInt(document.getElementById('set-rate-learn').value) || 30;
+        state.sysSettings.coinRates.habit = parseInt(document.getElementById('set-rate-habit').value) || 10;
         await saveSettingsData();
-        renderCustomCatList();
-    }
-});
+        showToast("✅ 設定儲存成功");
+        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+        
+        updateUI();
+        if(document.getElementById('reportModal') && document.getElementById('reportModal').classList.contains('show')) {
+            document.getElementById('btn-generate-report').click();
+        }
+    });
+}
+
+const btnAddCustomCat = document.getElementById('btn-add-custom-cat');
+if(btnAddCustomCat) {
+    btnAddCustomCat.addEventListener('click', async () => {
+        const type = document.getElementById('set-cat-type').value;
+        const name = document.getElementById('set-cat-name').value.trim();
+        if (name && !state.sysSettings.customCats[type].includes(name)) {
+            state.sysSettings.customCats[type].push(name);
+            document.getElementById('set-cat-name').value = "";
+            await saveSettingsData();
+            renderCustomCatList();
+        }
+    });
+}
 
 window.removeCustomCat = async (type, index) => {
     state.sysSettings.customCats[type].splice(index, 1);
@@ -644,6 +678,7 @@ window.removeCustomCat = async (type, index) => {
 
 function renderCustomCatList() {
     const list = document.getElementById('custom-cat-list');
+    if(!list) return;
     list.innerHTML = "";
     const typeSelect = document.getElementById('set-cat-type');
     const typeNames = Array.from(typeSelect.options).reduce((acc, opt) => ({...acc, [opt.value]: opt.text}), {});
@@ -658,20 +693,24 @@ function renderCustomCatList() {
         });
     });
 }
-document.getElementById('set-cat-type').addEventListener('change', renderCustomCatList);
+const setCatType = document.getElementById('set-cat-type');
+if(setCatType) setCatType.addEventListener('change', renderCustomCatList);
 
-document.getElementById('btn-add-quote').addEventListener('click', async () => {
-    const quoteInput = document.getElementById('set-custom-quote');
-    const text = quoteInput.value.trim();
-    if (text && !state.sysSettings.quotes.includes(text)) {
-        if(!state.sysSettings.quotes) state.sysSettings.quotes = [];
-        state.sysSettings.quotes.push(text);
-        quoteInput.value = "";
-        await saveSettingsData();
-        renderQuoteList();
-        window.refreshQuote(); 
-    }
-});
+const btnAddQuote = document.getElementById('btn-add-quote');
+if(btnAddQuote) {
+    btnAddQuote.addEventListener('click', async () => {
+        const quoteInput = document.getElementById('set-custom-quote');
+        const text = quoteInput.value.trim();
+        if (text && !state.sysSettings.quotes.includes(text)) {
+            if(!state.sysSettings.quotes) state.sysSettings.quotes = [];
+            state.sysSettings.quotes.push(text);
+            quoteInput.value = "";
+            await saveSettingsData();
+            renderQuoteList();
+            window.refreshQuote(); 
+        }
+    });
+}
 
 window.removeQuote = async (index) => {
     state.sysSettings.quotes.splice(index, 1);
@@ -681,6 +720,7 @@ window.removeQuote = async (index) => {
 
 function renderQuoteList() {
     const list = document.getElementById('custom-quote-list');
+    if(!list) return;
     list.innerHTML = "";
     (state.sysSettings.quotes || []).forEach((qText, idx) => {
         const li = document.createElement('li');
@@ -699,10 +739,12 @@ onAuthStateChanged(auth, async (user) => {
         
         const todayYMD = getLocalYMD();
         const dateInput = document.getElementById('input-date');
-        customStart.value = todayYMD;
-        customEnd.value = todayYMD;   
-        dateInput.value = todayYMD;
-        dateInput.max = todayYMD;
+        if(customStart) customStart.value = todayYMD;
+        if(customEnd) customEnd.value = todayYMD;   
+        if(dateInput) {
+            dateInput.value = todayYMD;
+            dateInput.max = todayYMD;
+        }
         
         await loadSettings(); 
         updateFormUI();
@@ -715,6 +757,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+// 💡 將 UI 更新移出 try...catch，避免真正的 UI 錯誤被當作 Firebase 錯誤
 async function fetchInitialData() {
     if (!state.currentUser) return;
     try {
@@ -733,64 +776,73 @@ async function fetchInitialData() {
         });
         
         state.recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
-        updateUI(); 
     } catch (error) { 
-        showToast("資料同步失敗，將使用離線快取", "warning"); 
+        console.error("Firebase Sync Error:", error);
+        showToast("資料庫同步異常，請檢查網路連線", "warning"); 
+    }
+
+    try {
+        updateUI(); 
+    } catch (renderError) {
+        console.error("畫面渲染錯誤:", renderError);
     }
 }
 
-document.getElementById('form-record').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if(state.isSubmitting) return; 
-    state.isSubmitting = true;
+const formRecord = document.getElementById('form-record');
+if(formRecord) {
+    formRecord.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(state.isSubmitting) return; 
+        state.isSubmitting = true;
 
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerText = "儲存中...";
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.innerText = "儲存中...";
 
-    const type = document.getElementById('input-type').value;
-    const categorySelect = document.getElementById('input-category');
-    const category = categorySelect.value;
-    let categoryText = categorySelect.options[categorySelect.selectedIndex].text;
-    
-    if(category.startsWith("custom_")) categoryText = category.replace("custom_", "🔸 ");
-    
-    let rawAmount = parseFloat(document.getElementById('input-amount').value);
-    if (isNaN(rawAmount) || rawAmount < 0 || rawAmount > 9999999) rawAmount = 0;
-
-    let amountToSave = rawAmount;
-    if (type === 'mood') amountToSave = parseFloat(category);
-    if (type === 'habit' || type === 'learning') amountToSave = 1;
-
-    const newRecord = {
-        uid: state.currentUser.uid + "_life",
-        date: document.getElementById('input-date').value,
-        type: type,
-        category: category,
-        categoryText: categoryText,
-        amount: amountToSave,
-        note: document.getElementById('input-note').value.trim(),
-        timestamp: Date.now()
-    };
-
-    try {
-        const docRef = await addDoc(collection(db, COLLECTION_RECORDS), newRecord);
-        newRecord.id = docRef.id;
+        const type = document.getElementById('input-type').value;
+        const categorySelect = document.getElementById('input-category');
+        const category = categorySelect.value;
+        let categoryText = categorySelect.options[categorySelect.selectedIndex].text;
         
-        state.recordsData.push(newRecord);
-        state.recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
-        updateUI();
+        if(category.startsWith("custom_")) categoryText = category.replace("custom_", "🔸 ");
         
-        document.getElementById('input-amount').value = "";
-        document.getElementById('input-note').value = "";
-        bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
-        showToast("✅ 足跡已登錄");
-    } catch (err) { 
-        showToast("寫入失敗", "danger"); 
-    } finally { 
-        state.isSubmitting = false;
-        btn.innerText = "💾 儲存紀錄"; 
-    }
-});
+        let rawAmount = parseFloat(document.getElementById('input-amount').value);
+        if (isNaN(rawAmount) || rawAmount < 0 || rawAmount > 9999999) rawAmount = 0;
+
+        let amountToSave = rawAmount;
+        if (type === 'mood') amountToSave = parseFloat(category);
+        if (type === 'habit' || type === 'learning') amountToSave = 1;
+
+        const newRecord = {
+            uid: state.currentUser.uid + "_life",
+            date: document.getElementById('input-date').value,
+            type: type,
+            category: category,
+            categoryText: categoryText,
+            amount: amountToSave,
+            note: document.getElementById('input-note').value.trim(),
+            timestamp: Date.now()
+        };
+
+        try {
+            const docRef = await addDoc(collection(db, COLLECTION_RECORDS), newRecord);
+            newRecord.id = docRef.id;
+            
+            state.recordsData.push(newRecord);
+            state.recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
+            updateUI();
+            
+            document.getElementById('input-amount').value = "";
+            document.getElementById('input-note').value = "";
+            bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
+            showToast("✅ 足跡已登錄");
+        } catch (err) { 
+            showToast("寫入失敗", "danger"); 
+        } finally { 
+            state.isSubmitting = false;
+            btn.innerText = "💾 儲存紀錄"; 
+        }
+    });
+}
 
 window.deleteRecord = (id) => {
     showConfirm("移除足跡", "確定要刪除這筆紀錄嗎？", [
@@ -806,50 +858,59 @@ window.deleteRecord = (id) => {
     ]);
 };
 
-document.getElementById('btn-toggle-manage').addEventListener('click', () => {
-    state.isManageMode = true;
-    document.getElementById('btn-toggle-manage').classList.add('d-none');
-    document.getElementById('manage-bar').classList.remove('d-none');
-    document.querySelectorAll('.action-lock').forEach(el => el.classList.add('disabled-mode'));
-    renderTables();
-});
+const btnToggleManage = document.getElementById('btn-toggle-manage');
+if(btnToggleManage) {
+    btnToggleManage.addEventListener('click', () => {
+        state.isManageMode = true;
+        btnToggleManage.classList.add('d-none');
+        document.getElementById('manage-bar').classList.remove('d-none');
+        document.querySelectorAll('.action-lock').forEach(el => el.classList.add('disabled-mode'));
+        renderTables();
+    });
+}
 
-document.getElementById('btn-cancel-manage').addEventListener('click', () => {
-    state.isManageMode = false;
-    document.getElementById('btn-toggle-manage').classList.remove('d-none');
-    document.getElementById('manage-bar').classList.add('d-none');
-    document.querySelectorAll('.action-lock').forEach(el => el.classList.remove('disabled-mode'));
-    renderTables();
-});
+const btnCancelManage = document.getElementById('btn-cancel-manage');
+if(btnCancelManage) {
+    btnCancelManage.addEventListener('click', () => {
+        state.isManageMode = false;
+        document.getElementById('btn-toggle-manage').classList.remove('d-none');
+        document.getElementById('manage-bar').classList.add('d-none');
+        document.querySelectorAll('.action-lock').forEach(el => el.classList.remove('disabled-mode'));
+        renderTables();
+    });
+}
 
-document.getElementById('btn-batch-delete').addEventListener('click', () => {
-    const checkedBoxes = document.querySelectorAll(".cb-record-item:checked");
-    if(checkedBoxes.length === 0) { showToast("請先勾選項目！", "warning"); return; }
-    
-    showConfirm("批次刪除", `確定要刪除選取的 <strong class="text-danger">${checkedBoxes.length}</strong> 筆足跡嗎？`, [
-        { text: "💥 確認批次刪除", class: "btn-danger", onClick: async () => {
-            const btn = document.getElementById('btn-batch-delete');
-            btn.disabled = true; btn.innerText = "刪除中...";
-            try {
-                const batch = writeBatch(db);
-                let idsToDelete = [];
-                checkedBoxes.forEach(cb => {
-                    batch.delete(doc(db, COLLECTION_RECORDS, cb.value));
-                    idsToDelete.push(cb.value);
-                });
-                await batch.commit();
-                
-                state.recordsData = state.recordsData.filter(r => !idsToDelete.includes(r.id));
-                updateUI();
-                
-                document.getElementById('btn-cancel-manage').click();
-                showToast(`✅ 成功刪除 ${checkedBoxes.length} 筆資料`, "success");
-            } catch(e) { showToast("批次刪除失敗", "danger"); }
-            finally { btn.disabled = false; btn.innerText = "刪除選取項目"; }
-        }},
-        { text: "取消", class: "btn-light", dismiss: true }
-    ]);
-});
+const btnBatchDelete = document.getElementById('btn-batch-delete');
+if(btnBatchDelete) {
+    btnBatchDelete.addEventListener('click', () => {
+        const checkedBoxes = document.querySelectorAll(".cb-record-item:checked");
+        if(checkedBoxes.length === 0) { showToast("請先勾選項目！", "warning"); return; }
+        
+        showConfirm("批次刪除", `確定要刪除選取的 <strong class="text-danger">${checkedBoxes.length}</strong> 筆足跡嗎？`, [
+            { text: "💥 確認批次刪除", class: "btn-danger", onClick: async () => {
+                const btn = document.getElementById('btn-batch-delete');
+                btn.disabled = true; btn.innerText = "刪除中...";
+                try {
+                    const batch = writeBatch(db);
+                    let idsToDelete = [];
+                    checkedBoxes.forEach(cb => {
+                        batch.delete(doc(db, COLLECTION_RECORDS, cb.value));
+                        idsToDelete.push(cb.value);
+                    });
+                    await batch.commit();
+                    
+                    state.recordsData = state.recordsData.filter(r => !idsToDelete.includes(r.id));
+                    updateUI();
+                    
+                    document.getElementById('btn-cancel-manage').click();
+                    showToast(`✅ 成功刪除 ${checkedBoxes.length} 筆資料`, "success");
+                } catch(e) { showToast("批次刪除失敗", "danger"); }
+                finally { btn.disabled = false; btn.innerText = "刪除選取項目"; }
+            }},
+            { text: "取消", class: "btn-light", dismiss: true }
+        ]);
+    });
+}
 
 document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
 document.getElementById('btn-logout').addEventListener('click', () => {
