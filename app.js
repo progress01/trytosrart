@@ -4,12 +4,8 @@ import { collection, addDoc, query, where, getDocs, doc, deleteDoc, getDoc, setD
 const COLLECTION_RECORDS = "LifeApp_Records"; 
 const COLLECTION_SETTINGS = "LifeApp_Settings"; 
 
-// 🎯 前端狀態管理 (單一資料庫來源)
 let state = {
-    currentUser: null,
-    recordsData: [],
-    isSubmitting: false, 
-    isManageMode: false,
+    currentUser: null, recordsData: [], isSubmitting: false, isManageMode: false,
     sysSettings: {
         coinRates: { money: 100, calorie: 100, learning: 30, habit: 10 },
         customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [] },
@@ -17,7 +13,8 @@ let state = {
     }
 };
 
-// --- 預設常數與純風景圖庫 ---
+let chartInstances = { growth: null, finance: null, health: null };
+
 const DEFAULT_CAT_MAP = {
     'learning': [ {val: 'eng_micro', text: '🔤 英文微接觸'}, {val: 'read_page', text: '📖 翻開書本/文獻'}, {val: 'tech_doc', text: '💻 架構與技術實作'} ],
     'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 冥想'}, {val: 'clean', text: '🧹 整理環境'} ],
@@ -46,7 +43,6 @@ const BG_IMAGES = [
     "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=800&q=80"
 ];
 
-// --- 💡 工具函式 ---
 const getLocalYMD = (date = new Date()) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -82,16 +78,64 @@ window.showConfirm = function(title, message, buttons) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('dynamicConfirmModal')).show();
 };
 
-// --- 💡 視圖更新函式 ---
-function refreshQuote() {
+window.refreshQuote = () => {
     const combinedQuotes = [...DEFAULT_QUOTES, ...(state.sysSettings.quotes || [])];
     const randQ = combinedQuotes[Math.floor(Math.random() * combinedQuotes.length)].split("--");
     document.getElementById('q-text').innerText = randQ[0].trim();
     document.getElementById('q-author').innerText = randQ[1] ? `-- ${randQ[1].trim()}` : '';
     const randBg = BG_IMAGES[Math.floor(Math.random() * BG_IMAGES.length)];
     document.getElementById('quote-card').style.backgroundImage = `url('${randBg}')`;
+};
+
+// --- 💡 區間切換與 GA 自訂日期 ---
+const rangeSelect = document.getElementById('overview-range');
+const customStart = document.getElementById('custom-start-date');
+const customEnd = document.getElementById('custom-end-date');
+const customSep = document.getElementById('custom-date-sep');
+
+function toggleCustomDateInputs() {
+    if (rangeSelect.value === 'custom') {
+        customStart.classList.remove('d-none');
+        customEnd.classList.remove('d-none');
+        customSep.classList.remove('d-none');
+    } else {
+        customStart.classList.add('d-none');
+        customEnd.classList.add('d-none');
+        customSep.classList.add('d-none');
+    }
+    updateUI(); 
 }
-document.getElementById('quote-card').addEventListener('click', refreshQuote);
+
+rangeSelect.addEventListener('change', toggleCustomDateInputs);
+customStart.addEventListener('change', updateUI);
+customEnd.addEventListener('change', updateUI);
+
+function getRangeBounds() {
+    const rangeType = rangeSelect.value;
+    const now = new Date();
+    const todayStr = getLocalYMD(now);
+    
+    if (rangeType === 'week') {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const startWeek = new Date(now.setDate(diff));
+        const endWeek = new Date(startWeek);
+        endWeek.setDate(startWeek.getDate() + 6);
+        return { start: getLocalYMD(startWeek), end: getLocalYMD(endWeek), label: "本週", totalDays: 7 };
+    }
+    if (rangeType === 'month') {
+        const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        return { start: todayStr.substring(0, 7) + "-01", end: todayStr.substring(0, 7) + "-31", label: "本月", totalDays: totalDays };
+    }
+    if (rangeType === 'custom') {
+        const start = customStart.value || todayStr;
+        const end = customEnd.value || todayStr;
+        const sDate = new Date(start);
+        const eDate = new Date(end);
+        const diffDays = Math.ceil(Math.abs(eDate - sDate) / (1000 * 60 * 60 * 24)) + 1;
+        return { start: start, end: end, label: "自訂", totalDays: diffDays || 1 };
+    }
+}
 
 function updateFormUI() {
     const typeSelect = document.getElementById('input-type');
@@ -120,33 +164,16 @@ function updateFormUI() {
 }
 document.getElementById('input-type').addEventListener('change', updateFormUI);
 
-function getRangeBounds(rangeType) {
-    const now = new Date();
-    const todayStr = getLocalYMD(now);
-    if (rangeType === 'week') {
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-        const startWeek = new Date(now.setDate(diff));
-        const endWeek = new Date(startWeek);
-        endWeek.setDate(startWeek.getDate() + 6);
-        return { start: getLocalYMD(startWeek), end: getLocalYMD(endWeek), label: "本週", totalDays: 7 };
-    }
-    if (rangeType === 'month') {
-        const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        return { start: todayStr.substring(0, 7) + "-01", end: todayStr.substring(0, 7) + "-31", label: "本月", totalDays: totalDays };
-    }
-}
-
 function updateUI() {
     updateStats(); 
+    renderAnalyses(); 
     renderHeatmap(); 
     renderTables();
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 }
 
 function updateStats() {
-    const rangeType = document.getElementById('overview-range').value;
-    const bounds = getRangeBounds(rangeType);
+    const bounds = getRangeBounds();
     document.querySelectorAll('.range-label').forEach(el => el.innerText = bounds.label);
     
     let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
@@ -188,7 +215,178 @@ function updateStats() {
     bar.style.width = `${progressPct}%`;
     bar.className = `progress-bar ${progressPct >= 80 ? 'bg-success' : (progressPct >= 50 ? 'bg-warning' : 'bg-secondary')}`;
 }
-document.getElementById('overview-range').addEventListener('change', updateStats);
+
+function renderAnalyses() {
+    const bounds = getRangeBounds();
+    let rangeRecords = state.recordsData
+        .filter(r => r.date >= bounds.start && r.date <= bounds.end)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // 1. 🌱 成長分析 (Growth)
+    let learnCount = 0, habitCount = 0;
+    let growthLabels = [], growthData = [], gTooltips = [], gTotal = 0;
+    rangeRecords.forEach(r => {
+        if (r.type === 'learning') learnCount += r.amount;
+        if (r.type === 'habit') habitCount += r.amount;
+        if (r.type === 'learning' || r.type === 'habit') {
+            gTotal += r.amount;
+            growthLabels.push(r.date.substring(5));
+            growthData.push(gTotal);
+            gTooltips.push(r.note || r.categoryText);
+        }
+    });
+    document.getElementById('ana-learn-total').innerText = `${learnCount} 次`;
+    document.getElementById('ana-habit-total').innerText = `${habitCount} 次`;
+    drawChart('chart-growth', 'growth', '累積成長 (次)', growthLabels, growthData, gTooltips, '#39c5bb', 'rgba(57,197,187,0.1)');
+
+    // 2. 💳 財務分析 (Finance)
+    let expenses = {}, topCat = "無", topAmt = 0;
+    let finLabels = [], finData = [], fTooltips = [], netWorth = 0;
+    rangeRecords.forEach(r => {
+        if (r.type === 'expense') {
+            expenses[r.categoryText] = (expenses[r.categoryText] || 0) + r.amount;
+            if (expenses[r.categoryText] > topAmt) { topAmt = expenses[r.categoryText]; topCat = r.categoryText; }
+            netWorth -= r.amount;
+            finLabels.push(r.date.substring(5));
+            finData.push(netWorth);
+            fTooltips.push(`支出: ${r.amount} (${r.categoryText})`);
+        }
+        if (r.type === 'income') {
+            netWorth += r.amount;
+            finLabels.push(r.date.substring(5));
+            finData.push(netWorth);
+            fTooltips.push(`收入: ${r.amount} (${r.categoryText})`);
+        }
+    });
+    document.getElementById('ana-net-worth').innerText = netWorth >= 0 ? `+${netWorth}` : netWorth;
+    document.getElementById('ana-top-expense').innerText = `${topCat}`;
+    drawChart('chart-finance', 'finance', '累積淨值', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
+
+    // 3. 💪 健康分析 (Health)
+    let hlLabels = [], healData = [], hTooltips = [], totalDeficit = 0;
+    rangeRecords.forEach(r => {
+        if (r.type === 'exercise') {
+            totalDeficit += r.amount;
+            hlLabels.push(r.date.substring(5));
+            healData.push(totalDeficit);
+            hTooltips.push(`消耗: ${r.amount}`);
+        }
+        if (r.type === 'food') {
+            totalDeficit -= r.amount;
+            hlLabels.push(r.date.substring(5));
+            healData.push(totalDeficit);
+            hTooltips.push(`攝取: ${r.amount}`);
+        }
+    });
+    document.getElementById('ana-total-deficit').innerText = totalDeficit > 0 ? `+${totalDeficit}` : totalDeficit;
+    let fatLost = (totalDeficit / 7700).toFixed(2);
+    if (fatLost > 0.05) { document.getElementById('ana-fat-loss').innerText = `🔥 甩掉 ${fatLost} kg`; } 
+    else if (totalDeficit > 0) { document.getElementById('ana-fat-loss').innerText = `🧋 抵消 ${Math.floor(totalDeficit/500)} 杯珍奶`; } 
+    else { document.getElementById('ana-fat-loss').innerText = `保持平衡`; }
+    drawChart('chart-health', 'health', '累積赤字 (卡)', hlLabels, healData, hTooltips, '#3fb950', 'rgba(63,185,80,0.1)');
+
+    // 4. 🌟 狀態分析 (Life - Emoji Bars)
+    let highEnergyDays = new Set(), sleepSum = 0, sleepCount = 0;
+    let moodCounts = {5:0, 4:0, 3:0, 2:0, 1:0};
+    rangeRecords.forEach(r => {
+        if (r.type === 'mood') {
+            moodCounts[r.amount]++;
+            if (r.amount >= 4) highEnergyDays.add(r.date);
+        }
+        if (r.type === 'sleep') { sleepSum += r.amount; sleepCount++; }
+    });
+    document.getElementById('ana-high-energy').innerText = `${highEnergyDays.size} 天`;
+    document.getElementById('ana-sleep-avg').innerText = sleepCount > 0 ? (sleepSum/sleepCount).toFixed(1) + ' 小時' : '0 小時';
+
+    let moodTotal = Object.values(moodCounts).reduce((a, b) => a + b, 0) || 1;
+    let moodHtml = '';
+    const moodConfig = [
+        {val: 5, emoji: '🤩', color: 'bg-primary'}, {val: 4, emoji: '🙂', color: 'bg-success'},
+        {val: 3, emoji: '😐', color: 'bg-warning'}, {val: 2, emoji: '😫', color: 'bg-danger'}, {val: 1, emoji: '😭', color: 'bg-secondary'}
+    ];
+    moodConfig.forEach(m => {
+        let pct = (moodCounts[m.val] / moodTotal) * 100;
+        moodHtml += `
+            <div class="d-flex align-items-center" style="font-size: 0.85rem;">
+                <span class="me-2" style="width: 25px;">${m.emoji}</span>
+                <div class="progress flex-grow-1" style="height: 10px; background-color: var(--border-color);">
+                    <div class="progress-bar ${m.color}" style="width: ${pct}%"></div>
+                </div>
+                <span class="ms-2 text-muted" style="width: 25px; text-align: right;">${moodCounts[m.val]}</span>
+            </div>
+        `;
+    });
+    document.getElementById('ana-mood-bars').innerHTML = moodHtml;
+}
+
+function drawChart(canvasId, instanceKey, label, labels, data, tooltips, borderColor, bgColor) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (chartInstances[instanceKey]) chartInstances[instanceKey].destroy();
+    if(labels.length === 0) { labels = ['無']; data = [0]; tooltips = ['無資料']; }
+
+    chartInstances[instanceKey] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                borderColor: borderColor,
+                backgroundColor: bgColor,
+                borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3, pointBackgroundColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { footer: (t) => "📝 " + tooltips[t[0].dataIndex] } }
+            },
+            scales: {
+                x: { ticks: { color: '#8b949e', maxTicksLimit: 7 }, grid: { display: false } },
+                y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+            }
+        }
+    });
+}
+
+// 💡 匯出 CSV 邏輯
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+    if (!state.recordsData || state.recordsData.length === 0) {
+        showToast("目前沒有資料可以匯出", "warning"); return;
+    }
+    const btn = document.getElementById('btn-export-csv');
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ 處理中...";
+    btn.disabled = true;
+
+    try {
+        let csvContent = "\uFEFF"; 
+        csvContent += "日期,類型(Type),次分類(Category),數值(Amount),備註細節(Note)\n";
+
+        state.recordsData.forEach(r => {
+            let safeNote = r.note ? `"${r.note.replace(/"/g, '""').replace(/\n/g, ' ')}"` : "";
+            let row = `${r.date},${r.type},${r.categoryText || r.category},${r.amount},${safeNote}`;
+            csvContent += row + "\n";
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `LifeTracker_Export_${getLocalYMD()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast("✅ CSV 匯出成功！");
+    } catch (error) {
+        showToast("匯出失敗", "danger");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+});
 
 function renderTables() {
     const finBody = document.getElementById('table-finance-body');
@@ -280,74 +478,8 @@ function renderHeatmap() {
     setTimeout(() => { document.getElementById('heatmap-scroller').scrollLeft = document.getElementById('heatmap-scroller').scrollWidth; }, 100);
 }
 
-document.getElementById('btn-generate-report').addEventListener('click', () => {
-    const rangeType = document.getElementById('overview-range').value;
-    const bounds = getRangeBounds(rangeType);
-    document.getElementById('report-range-label').innerText = bounds.label;
-    document.getElementById('report-user-name').innerText = `👤 ${state.currentUser.displayName}`;
+// ... 下方程式碼與先前一致，包含設定載入 loadSettings()、儲存 saveSettingsData()、Auth 狀態監聽 onAuthStateChanged() 等等 ...
 
-    let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
-    let dayStats = {}; 
-
-    state.recordsData.forEach(r => {
-        if (r.date >= bounds.start && r.date <= bounds.end) {
-            if(!dayStats[r.date]) dayStats[r.date] = { expense: 0, food: 0, goodDeeds: 0 };
-            if (r.type === 'expense') { tExpense += r.amount; dayStats[r.date].expense += r.amount; }
-            if (r.type === 'income') { tIncome += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'food') { tFood += r.amount; dayStats[r.date].food += r.amount; }
-            if (r.type === 'exercise') { tBurn += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'learning') { tLearning += r.amount; dayStats[r.date].goodDeeds++; }
-            if (r.type === 'habit') { tHabit += r.amount; dayStats[r.date].goodDeeds++; }
-        }
-    });
-
-    let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
-    Object.values(dayStats).forEach(ds => {
-        if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
-    });
-    const slackRate = Math.round((slackDays / bounds.totalDays) * 100);
-
-    let saving = tIncome - tExpense;
-    let calorieDeficit = tBurn - tFood;
-    let lifeCoin = 0;
-
-    const rates = state.sysSettings.coinRates;
-    if(saving > 0) lifeCoin += Math.floor(saving / rates.money);
-    if(calorieDeficit > 0) lifeCoin += Math.floor(calorieDeficit / rates.calorie);
-    lifeCoin += (tLearning * rates.learning);
-    lifeCoin += (tHabit * rates.habit);
-
-    const card = document.getElementById('tier-card-container');
-    const titleEl = document.getElementById('report-tier-title');
-    card.className = "tier-card"; 
-    
-    let tierClass, titleClass, titleText;
-    let coinTarget = rangeType === 'week' ? 100 : 400; 
-
-    if (lifeCoin >= coinTarget * 1.5 && slackRate <= 20) {
-        tierClass = "tier-s"; titleClass = "title-s"; titleText = "👑 究極自律神人 (S)";
-    } else if (lifeCoin >= coinTarget) {
-        tierClass = "tier-a"; titleClass = "title-a"; titleText = "🌟 優秀發揮 (A)";
-    } else if (lifeCoin >= coinTarget * 0.5) {
-        tierClass = "tier-b"; titleClass = "title-b"; titleText = "🙂 穩步前進 (B)";
-    } else {
-        tierClass = "tier-f"; titleClass = "title-f"; titleText = "🌚 徹底放飛 (F)";
-    }
-
-    card.classList.add(tierClass);
-    titleEl.className = `tier-title ${titleClass}`;
-    titleEl.innerText = titleText;
-
-    document.getElementById('report-life-coin').innerText = lifeCoin;
-    document.getElementById('report-net-finance').innerText = saving >= 0 ? `+${saving}` : saving;
-    document.getElementById('report-net-finance').className = `fw-bold fs-5 ${saving >= 0 ? 'text-success' : 'text-danger'}`;
-    document.getElementById('report-net-calorie').innerText = calorieDeficit >= 0 ? `+${calorieDeficit}` : calorieDeficit;
-    document.getElementById('report-net-calorie').className = `fw-bold fs-5 ${calorieDeficit >= 0 ? 'text-info' : 'text-danger'}`;
-    document.getElementById('report-learning-hrs').innerText = tLearning;
-    document.getElementById('report-slacking-rate').innerText = `${slackRate}%`;
-});
-
-// --- 💡 設定檔讀寫邏輯 ---
 async function loadSettings() {
     if (!state.currentUser) return;
     const docRef = doc(db, COLLECTION_SETTINGS, state.currentUser.uid + "_life");
@@ -384,7 +516,6 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
     await saveSettingsData();
     showToast("✅ 設定儲存成功");
     bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-    if(document.getElementById('reportModal').classList.contains('show')) document.getElementById('btn-generate-report').click();
 });
 
 document.getElementById('btn-add-custom-cat').addEventListener('click', async () => {
@@ -430,7 +561,7 @@ document.getElementById('btn-add-quote').addEventListener('click', async () => {
         quoteInput.value = "";
         await saveSettingsData();
         renderQuoteList();
-        refreshQuote(); 
+        window.refreshQuote(); 
     }
 });
 
@@ -452,7 +583,6 @@ function renderQuoteList() {
     });
 }
 
-// --- 💡 初始載入與 Firebase CRUD 邏輯 ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         state.currentUser = user;
@@ -461,26 +591,20 @@ onAuthStateChanged(auth, async (user) => {
         
         const todayYMD = getLocalYMD();
         const dateInput = document.getElementById('input-date');
+        customStart.value = todayYMD; // 初始化 GA 起始時間
+        customEnd.value = todayYMD;   // 初始化 GA 結束時間
         dateInput.value = todayYMD;
         dateInput.max = todayYMD;
         
         await loadSettings(); 
         updateFormUI();
-        refreshQuote();
+        window.refreshQuote();
         await fetchInitialData(); 
     } else {
         state.currentUser = null;
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('main-app').style.display = 'none';
     }
-});
-
-document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
-document.getElementById('btn-logout').addEventListener('click', () => {
-    showConfirm("登出", "確定要登出您的帳號嗎？", [
-        { text: "登出", class: "btn-danger", onClick: () => signOut(auth) },
-        { text: "取消", class: "btn-light", dismiss: true }
-    ]);
 });
 
 async function fetchInitialData() {
@@ -544,7 +668,6 @@ document.getElementById('form-record').addEventListener('submit', async (e) => {
         const docRef = await addDoc(collection(db, COLLECTION_RECORDS), newRecord);
         newRecord.id = docRef.id;
         
-        // 🚀 Optimistic Update
         state.recordsData.push(newRecord);
         state.recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
         updateUI();
@@ -561,7 +684,20 @@ document.getElementById('form-record').addEventListener('submit', async (e) => {
     }
 });
 
-// --- 💡 批次管理 ---
+window.deleteRecord = (id) => {
+    showConfirm("移除足跡", "確定要刪除這筆紀錄嗎？", [
+        { text: "💥 刪除", class: "btn-danger", onClick: async () => {
+            try {
+                await deleteDoc(doc(db, COLLECTION_RECORDS, id));
+                state.recordsData = state.recordsData.filter(r => r.id !== id);
+                updateUI();
+                showToast("✅ 已移除");
+            } catch(e) { showToast("刪除失敗", "danger"); }
+        }},
+        { text: "取消", class: "btn-light", dismiss: true }
+    ]);
+};
+
 document.getElementById('btn-toggle-manage').addEventListener('click', () => {
     state.isManageMode = true;
     document.getElementById('btn-toggle-manage').classList.add('d-none');
@@ -595,7 +731,6 @@ document.getElementById('btn-batch-delete').addEventListener('click', () => {
                 });
                 await batch.commit();
                 
-                // 🚀 Optimistic Update
                 state.recordsData = state.recordsData.filter(r => !idsToDelete.includes(r.id));
                 updateUI();
                 
@@ -604,6 +739,14 @@ document.getElementById('btn-batch-delete').addEventListener('click', () => {
             } catch(e) { showToast("批次刪除失敗", "danger"); }
             finally { btn.disabled = false; btn.innerText = "刪除選取項目"; }
         }},
+        { text: "取消", class: "btn-light", dismiss: true }
+    ]);
+});
+
+document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
+document.getElementById('btn-logout').addEventListener('click', () => {
+    showConfirm("登出", "確定要登出您的帳號嗎？", [
+        { text: "登出", class: "btn-danger", onClick: () => signOut(auth) },
         { text: "取消", class: "btn-light", dismiss: true }
     ]);
 });
