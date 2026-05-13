@@ -330,7 +330,7 @@ function renderFundPool() {
     const totalEl = document.getElementById('fp-total-amount');
     if(totalEl) totalEl.innerText = total.toLocaleString();
 
-    // 💡 結算本月【總互動結果】
+    // 💡 結算本月【總互動結果】與【堆疊水位條】
     let mInc = 0, mExp = 0, mExtraInc = 0, mExtraExp = 0, mInvest = 0;
     state.recordsData.forEach(r => {
         if (r.date.startsWith(mStr)) {
@@ -342,13 +342,12 @@ function renderFundPool() {
         }
     });
 
-    // 💡 換算本月訂閱總額
     let mSub = 0;
     const mParts = mStr.split('-');
     const y = parseInt(mParts[0]);
-    const m = parseInt(mParts[1]) - 1; // JS 月份為 0-11
+    const m = parseInt(mParts[1]) - 1; 
     const mStart = new Date(y, m, 1);
-    const mEnd = new Date(y, m + 1, 0, 23, 59, 59); // 本月最後一天
+    const mEnd = new Date(y, m + 1, 0, 23, 59, 59);
 
     if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
         state.sysSettings.subscriptions.forEach(sub => {
@@ -358,7 +357,6 @@ function renderFundPool() {
             if (sEnd > sStart) {
                 const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
                 const dailyRate = sub.amount / totalSubDays;
-                
                 const overlapStart = mStart > sStart ? mStart : sStart;
                 const overlapEnd = mEnd < sEnd ? mEnd : sEnd;
                 
@@ -371,11 +369,20 @@ function renderFundPool() {
     }
     mSub = Math.round(mSub);
 
-    // 結算：基礎資金 + 日常(收-支-訂) + 大額(收-支-投)
     let baseBudget = total > 0 ? total : (state.sysSettings.budgets.month || 15000);
-    let finalNet = baseBudget + mInc + mExtraInc - mExp - mExtraExp - mInvest - mSub;
+    let totalIn = baseBudget + mInc + mExtraInc; 
+    let dailyOut = mExp + mSub;                  
+    let largeOut = mExtraExp + mInvest;          
+    let finalNet = totalIn - dailyOut - largeOut;
 
-    // 動態在 Modal 中插入摘要面板
+    let mathTotal = totalIn > (dailyOut + largeOut) ? totalIn : (dailyOut + largeOut);
+    let mathTotalSafe = mathTotal === 0 ? 1 : mathTotal; 
+    
+    let safeNet = finalNet > 0 ? finalNet : 0; 
+    let pctNet = (safeNet / mathTotalSafe) * 100;
+    let pctDaily = (dailyOut / mathTotalSafe) * 100;
+    let pctLarge = (largeOut / mathTotalSafe) * 100;
+
     let summaryContainer = document.getElementById('fp-interaction-summary');
     if (!summaryContainer) {
         summaryContainer = document.createElement('div');
@@ -387,12 +394,19 @@ function renderFundPool() {
     summaryContainer.innerHTML = `
         <div class="d-flex justify-content-between small mb-1" style="color: #8b949e;">
             <span>日常收支與訂閱：</span>
-            <span class="${(mInc - mExp - mSub) >= 0 ? 'text-success' : 'text-warning'}">${(mInc - mExp - mSub) >= 0 ? '+' : ''}${(mInc - mExp - mSub).toLocaleString()}</span>
+            <span class="${(mInc - dailyOut) >= 0 ? 'text-success' : 'text-warning'}">${(mInc - dailyOut) >= 0 ? '+' : ''}${(mInc - dailyOut).toLocaleString()}</span>
         </div>
         <div class="d-flex justify-content-between small mb-2" style="color: #8b949e;">
             <span>大額挪用與投資：</span>
-            <span class="${(mExtraInc - mExtraExp - mInvest) >= 0 ? 'text-success' : 'text-danger'}">${(mExtraInc - mExtraExp - mInvest) >= 0 ? '+' : ''}${(mExtraInc - mExtraExp - mInvest).toLocaleString()}</span>
+            <span class="${(mExtraInc - largeOut) >= 0 ? 'text-success' : 'text-danger'}">${(mExtraInc - largeOut) >= 0 ? '+' : ''}${(mExtraInc - largeOut).toLocaleString()}</span>
         </div>
+
+        <div class="progress mt-2 mb-3 shadow-sm" style="height: 12px; background-color: #2d333b; border-radius: 6px; overflow: hidden;">
+            <div class="progress-bar bg-success" style="width: ${pctNet}%" title="可用餘額"></div>
+            <div class="progress-bar bg-warning" style="width: ${pctDaily}%; opacity: 0.9;" title="日常消耗"></div>
+            <div class="progress-bar bg-danger" style="width: ${pctLarge}%; opacity: 0.8;" title="大額/投資消耗"></div>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px dashed #444;">
             <span class="fw-bold text-white small">本月真實總結餘：</span>
             <span class="fw-bold fs-5 ${finalNet >= 0 ? 'text-success' : 'text-danger'}">${finalNet >= 0 ? '+' : ''}${finalNet.toLocaleString()}</span>
