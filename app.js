@@ -329,6 +329,75 @@ function renderFundPool() {
 
     const totalEl = document.getElementById('fp-total-amount');
     if(totalEl) totalEl.innerText = total.toLocaleString();
+
+    // 💡 結算本月【總互動結果】
+    let mInc = 0, mExp = 0, mExtraInc = 0, mExtraExp = 0, mInvest = 0;
+    state.recordsData.forEach(r => {
+        if (r.date.startsWith(mStr)) {
+            if (r.type === 'income') mInc += r.amount;
+            if (r.type === 'expense') mExp += r.amount;
+            if (r.type === 'extra_income') mExtraInc += r.amount;
+            if (r.type === 'extra_expense') mExtraExp += r.amount;
+            if (r.type === 'investment') mInvest += r.amount;
+        }
+    });
+
+    // 💡 換算本月訂閱總額
+    let mSub = 0;
+    const mParts = mStr.split('-');
+    const y = parseInt(mParts[0]);
+    const m = parseInt(mParts[1]) - 1; // JS 月份為 0-11
+    const mStart = new Date(y, m, 1);
+    const mEnd = new Date(y, m + 1, 0, 23, 59, 59); // 本月最後一天
+
+    if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
+        state.sysSettings.subscriptions.forEach(sub => {
+            const sStart = new Date(sub.start);
+            const sEnd = new Date(sub.end);
+            
+            if (sEnd > sStart) {
+                const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
+                const dailyRate = sub.amount / totalSubDays;
+                
+                const overlapStart = mStart > sStart ? mStart : sStart;
+                const overlapEnd = mEnd < sEnd ? mEnd : sEnd;
+                
+                if(overlapStart <= overlapEnd) {
+                    const overlapDays = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                    mSub += (dailyRate * overlapDays); 
+                }
+            }
+        });
+    }
+    mSub = Math.round(mSub);
+
+    // 結算：基礎資金 + 日常(收-支-訂) + 大額(收-支-投)
+    let baseBudget = total > 0 ? total : (state.sysSettings.budgets.month || 15000);
+    let finalNet = baseBudget + mInc + mExtraInc - mExp - mExtraExp - mInvest - mSub;
+
+    // 動態在 Modal 中插入摘要面板
+    let summaryContainer = document.getElementById('fp-interaction-summary');
+    if (!summaryContainer) {
+        summaryContainer = document.createElement('div');
+        summaryContainer.id = 'fp-interaction-summary';
+        summaryContainer.className = 'mt-3 pt-2 border-top border-secondary text-start';
+        totalEl.parentNode.appendChild(summaryContainer);
+    }
+    
+    summaryContainer.innerHTML = `
+        <div class="d-flex justify-content-between small mb-1" style="color: #8b949e;">
+            <span>日常收支與訂閱：</span>
+            <span class="${(mInc - mExp - mSub) >= 0 ? 'text-success' : 'text-warning'}">${(mInc - mExp - mSub) >= 0 ? '+' : ''}${(mInc - mExp - mSub).toLocaleString()}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-2" style="color: #8b949e;">
+            <span>大額挪用與投資：</span>
+            <span class="${(mExtraInc - mExtraExp - mInvest) >= 0 ? 'text-success' : 'text-danger'}">${(mExtraInc - mExtraExp - mInvest) >= 0 ? '+' : ''}${(mExtraInc - mExtraExp - mInvest).toLocaleString()}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px dashed #444;">
+            <span class="fw-bold text-white small">本月真實總結餘：</span>
+            <span class="fw-bold fs-5 ${finalNet >= 0 ? 'text-success' : 'text-danger'}">${finalNet >= 0 ? '+' : ''}${finalNet.toLocaleString()}</span>
+        </div>
+    `;
 }
 
 const btnAddFp = document.getElementById('btn-add-fp');
