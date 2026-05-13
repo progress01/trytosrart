@@ -44,7 +44,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2">
             <h3 class="fw-bold mb-0 me-2">🧭 儀表板</h3>
             <select id="overview-range" class="form-select form-select-sm shadow-sm action-lock" style="width: auto; font-size: 0.9rem;">
-                <option value="day">今日</option> <!-- 💡 新增今日 -->
+                <option value="day">今日</option>
                 <option value="week" selected>本週</option>
                 <option value="month">本月</option>
                 <option value="custom">自訂區間...</option>
@@ -55,6 +55,8 @@
         </div>
 
         <div class="d-flex gap-2">
+            <!-- 資金池按鈕 -->
+            <button class="btn btn-sm btn-outline-info action-lock fw-bold" data-bs-toggle="modal" data-bs-target="#fundPoolModal">💰 資金池</button>
             <button class="btn btn-sm btn-outline-secondary action-lock" data-bs-toggle="modal" data-bs-target="#settingsModal">⚙️ 設定</button>
             <button class="btn btn-sm fw-bold action-lock" style="background-color: var(--theme-purple); color: white;" data-bs-toggle="modal" data-bs-target="#reportModal" id="btn-generate-report">🏆 戰報</button>
             <button id="btn-logout" class="btn btn-sm btn-outline-secondary rounded-pill px-3 action-lock">登出</button>
@@ -75,8 +77,8 @@
             <div class="card card-custom p-3 border-top border-warning border-3 h-100">
                 <div class="text-muted small"><span class="range-label">區間</span>可用結餘</div>
                 <h3 class="mt-2 mb-0 val-income" id="stat-saving">0</h3>
-                <!-- 💡 顯示預算與支出 -->
-                <div class="small text-muted mt-1">支 <span id="stat-expense">0</span> / 額度 <span id="stat-budget">0</span></div>
+                <div class="small text-muted mt-1">日常支 <span id="stat-expense">0</span> / 額度 <span id="stat-budget">0</span></div>
+                <div class="small text-warning mt-0">自動扣繳 (訂閱): -<span id="stat-sub">0</span></div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -102,6 +104,26 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 預期追蹤與待辦卡片 -->
+    <div class="card card-custom p-3 mb-4 action-lock">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0 text-muted">📌 預期花費與熱量提醒 (待辦追蹤)</h6>
+        </div>
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+            <input type="text" id="rem-text" class="form-control form-control-sm flex-grow-1" placeholder="項目 (例: 電話費, 週末大餐)" style="min-width: 140px;">
+            <select id="rem-type" class="form-select form-select-sm w-auto fw-bold text-dark">
+                <option value="expense">💸 花費</option>
+                <option value="food">🍱 熱量</option>
+            </select>
+            <input type="number" id="rem-amount" class="form-control form-control-sm w-auto" placeholder="數值" style="max-width: 90px;">
+            <input type="date" id="rem-date" class="form-control form-control-sm w-auto text-muted">
+            <button class="btn btn-sm btn-primary fw-bold" id="btn-add-reminder">新增預期</button>
+        </div>
+        <ul class="list-group list-group-flush rounded" id="reminder-list">
+            <!-- 待辦事項會由 JS 渲染至此 -->
+        </ul>
     </div>
 
     <!-- 歷史紀錄與圖表分析區塊 -->
@@ -150,8 +172,10 @@
 
             <div class="tab-pane fade h-100" id="content-finance">
                 <div class="row g-2 mb-3 text-center action-lock">
-                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">期間累積淨值</div><h5 class="val-income mb-0" id="ana-net-worth">0</h5></div></div>
-                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">支出最兇項目</div><h5 class="val-expense mb-0 text-truncate px-1" id="ana-top-expense">無</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">日常累積淨值</div><h5 class="val-income mb-0" id="ana-net-worth">0</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">日常支出最兇</div><h5 class="val-expense mb-0 text-truncate px-1" id="ana-top-expense">無</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">獨立收支淨額</div><h5 class="val-income mb-0" id="ana-extra-net">0</h5></div></div>
+                    <div class="col-6"><div class="p-2 bg-dark rounded border border-secondary"><div class="text-muted small">本期儲蓄與投資</div><h5 class="val-growth mb-0" id="ana-invest">0</h5></div></div>
                 </div>
                 <div class="mb-3 p-2 bg-dark rounded border border-secondary action-lock" style="height: 180px;"><canvas id="chart-finance"></canvas></div>
                 <div class="table-responsive tab-table-container"><table class="table table-dark-custom table-hover align-middle mb-0"><tbody id="table-finance-body"></tbody></table></div>
@@ -183,6 +207,33 @@
 
 <!-- ================= 所有 Modal ================= -->
 
+<!-- 💰 資金池 Modal -->
+<div class="modal fade" id="fundPoolModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="background-color: #1a1e24; border: 1px solid var(--theme-cyan);">
+            <div class="modal-header border-bottom-0 pb-1">
+                <h5 class="modal-title fw-bold text-white">💰 <span id="fp-month-label" class="text-info">本月</span> 資金池</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <div class="alert alert-dark border-secondary p-2 text-center mb-3">
+                    <div class="small text-muted mb-1">本月設定總資金 (將覆寫靜態月預算)</div>
+                    <h3 class="mb-0 val-income fw-bold" id="fp-total-amount">0</h3>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                    <input type="text" id="fp-name" class="form-control form-control-sm" placeholder="項目 (例: 薪水)" maxlength="15">
+                    <input type="number" id="fp-amount" class="form-control form-control-sm" placeholder="金額" style="width: 90px;">
+                    <button class="btn btn-sm btn-info fw-bold" id="btn-add-fp">加入</button>
+                </div>
+                <ul class="list-group list-group-flush border border-secondary rounded" id="fp-list" style="font-size: 0.85rem; max-height: 200px; overflow-y: auto;">
+                    <!-- 資金項目會由 JS 渲染 -->
+                </ul>
+                <div class="small text-muted text-center mt-2">提示：依據左上方區間選擇的月份進行設定與顯示。</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ⚙️ 系統設定 Modal -->
 <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -193,8 +244,7 @@
             </div>
             <div class="modal-body pt-0">
 
-                <!-- 💡 新增：預算設定 -->
-                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3 mt-2" style="color: var(--theme-blue);">💰 預算設定 (解決結餘負數)</h6>
+                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3 mt-2" style="color: var(--theme-blue);">💰 靜態預算設定 (當資金池未設定時使用)</h6>
                 <div class="row g-2 mb-4">
                     <div class="col-4">
                         <label class="form-label small text-muted mb-1">日預算</label>
@@ -209,6 +259,22 @@
                         <input type="number" class="form-control form-control-sm" id="set-budget-month" placeholder="例: 15000" min="0">
                     </div>
                 </div>
+                
+                <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3" style="color: var(--theme-blue);">🔄 週期訂閱管理 (將依設定時間攤提至每天)</h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><input type="text" class="form-control form-control-sm" id="set-sub-name" placeholder="項目名稱 (例: Netflix)"></div>
+                    <div class="col-6"><input type="number" class="form-control form-control-sm" id="set-sub-amount" placeholder="每週應扣除金額 (例: 100)"></div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">起始日</label>
+                        <input type="date" class="form-control form-control-sm" id="set-sub-start">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">到期日</label>
+                        <input type="date" class="form-control form-control-sm" id="set-sub-end">
+                    </div>
+                    <div class="col-12"><button class="btn btn-sm btn-outline-primary w-100 mt-1" id="btn-add-sub">新增訂閱項目</button></div>
+                </div>
+                <ul class="list-group list-group-flush border border-secondary rounded mb-4" id="custom-sub-list" style="font-size: 0.85rem; max-height: 150px; overflow-y: auto;"></ul>
                 
                 <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3" style="color: var(--theme-blue);">📈 戰報匯率設定 (生活幣換算)</h6>
                 <div class="row g-2 mb-4">
@@ -233,8 +299,11 @@
                 <h6 class="text-theme-blue fw-bold border-bottom border-secondary pb-2 mb-3" style="color: var(--theme-blue);">🏷️ 自訂次分類</h6>
                 <div class="mb-2 d-flex gap-2">
                     <select class="form-select form-select-sm w-auto" id="set-cat-type">
-                        <option value="expense">💸 支出</option>
-                        <option value="income">💰 收入</option>
+                        <option value="expense">💸 日常支出</option>
+                        <option value="income">💰 日常收入</option>
+                        <option value="extra_expense">🏦 額外大筆支出</option>
+                        <option value="extra_income">💵 額外收入</option>
+                        <option value="investment">📈 投資儲蓄</option>
                         <option value="learning">📚 學習</option>
                         <option value="habit">✅ 習慣</option>
                     </select>
@@ -283,9 +352,14 @@
                                 <option value="learning">📚 微學習/閱讀 (有做即打卡)</option>
                                 <option value="habit">✅ 生活習慣 (有做即打卡)</option>
                             </optgroup>
-                            <optgroup label="財務管理">
-                                <option value="expense">💸 支出 (花費)</option>
-                                <option value="income">💰 收入 (存錢/薪水)</option>
+                            <optgroup label="日常預算管理">
+                                <option value="expense">💸 日常支出 (扣除結餘)</option>
+                                <option value="income">💰 日常收入 (增加結餘)</option>
+                            </optgroup>
+                            <optgroup label="獨立財務 (不計入日常預算)">
+                                <option value="extra_expense">🏦 額外/大筆支出 (保險/稅等)</option>
+                                <option value="extra_income">💵 額外收入 (獎金/利息等)</option>
+                                <option value="investment">📈 儲蓄與投資</option>
                             </optgroup>
                             <optgroup label="健康管理">
                                 <option value="food">🍱 飲食 (攝取熱量)</option>
@@ -336,7 +410,7 @@
                             <div class="life-coin" id="report-life-coin">0</div>
                         </div>
                         <div class="col-4 border-end border-secondary">
-                            <div class="small text-muted mb-1">財務可用結餘</div>
+                            <div class="small text-muted mb-1">日常可用結餘</div>
                             <div class="fw-bold text-success fs-5" id="report-net-finance">0</div>
                         </div>
                         <div class="col-4">
