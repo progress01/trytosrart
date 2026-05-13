@@ -22,7 +22,7 @@ let chartInstances = { growth: null, finance: null, health: null };
 
 const DEFAULT_CAT_MAP = {
     'learning': [ {val: 'eng_micro', text: '🔤 英文微接觸'}, {val: 'read_page', text: '📖 翻開書本/文獻'}, {val: 'tech_doc', text: '💻 架構與技術實作'} ],
-    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 思考'}, {val: 'clean', text: '🧹 整理環境'} ],
+    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 冥想'}, {val: 'clean', text: '🧹 整理環境'} ],
     'expense': [ {val: 'food', text: '餐飲'}, {val: 'transport', text: '交通'}, {val: 'shopping', text: '購物'}, {val: 'entertainment', text: '娛樂'} ],
     'income': [ {val: 'salary', text: '一般薪資'}, {val: 'bonus', text: '一般獎金'} ],
     'extra_expense': [ {val: 'insurance', text: '保險/稅金'}, {val: 'medical', text: '醫療/意外'}, {val: 'large_buy', text: '大筆購物'} ],
@@ -216,14 +216,22 @@ function updateStats() {
     if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
         const bStart = new Date(bounds.start);
         const bEnd = new Date(bounds.end);
+        
         state.sysSettings.subscriptions.forEach(sub => {
             const sStart = new Date(sub.start);
             const sEnd = new Date(sub.end);
-            const overlapStart = bStart > sStart ? bStart : sStart;
-            const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
-            if(overlapStart <= overlapEnd) {
-                const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
-                tSub += (sub.amount / 7) * days; 
+            
+            if (sEnd > sStart) {
+                const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
+                const dailyRate = sub.amount / totalSubDays;
+                
+                const overlapStart = bStart > sStart ? bStart : sStart;
+                const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
+                
+                if(overlapStart <= overlapEnd) {
+                    const overlapDays = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                    tSub += (dailyRate * overlapDays); 
+                }
             }
         });
     }
@@ -751,17 +759,25 @@ if(btnReport) {
         });
 
         let tSub = 0;
-        if(state.sysSettings.subscriptions) {
+        if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
             const bStart = new Date(bounds.start);
             const bEnd = new Date(bounds.end);
+            
             state.sysSettings.subscriptions.forEach(sub => {
                 const sStart = new Date(sub.start);
                 const sEnd = new Date(sub.end);
-                const overlapStart = bStart > sStart ? bStart : sStart;
-                const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
-                if(overlapStart <= overlapEnd) {
-                    const days = Math.ceil((overlapEnd - overlapStart) / 86400000) + 1;
-                    tSub += (sub.amount / 7) * days;
+                
+                if (sEnd > sStart) {
+                    const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
+                    const dailyRate = sub.amount / totalSubDays;
+                    
+                    const overlapStart = bStart > sStart ? bStart : sStart;
+                    const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
+                    
+                    if(overlapStart <= overlapEnd) {
+                        const overlapDays = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                        tSub += (dailyRate * overlapDays); 
+                    }
                 }
             });
         }
@@ -775,6 +791,14 @@ if(btnReport) {
 
         let budget = state.sysSettings.budgets[rangeType] || 0;
         if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
+
+        if (rangeType === 'month') {
+            const targetMonth = bounds.start.substring(0, 7); 
+            if (state.sysSettings.fundPools && state.sysSettings.fundPools[targetMonth]) {
+                const poolSum = state.sysSettings.fundPools[targetMonth].reduce((acc, curr) => acc + curr.amount, 0);
+                if (poolSum > 0) budget = poolSum; 
+            }
+        }
         
         let balance = (budget + tIncome) - tExpense - tSub;
         let calorieDeficit = tBurn - tFood;
@@ -895,6 +919,12 @@ if(btnAddSub) {
         const amt = parseFloat(document.getElementById('set-sub-amount').value);
         const start = document.getElementById('set-sub-start').value;
         const end = document.getElementById('set-sub-end').value;
+        
+        if (new Date(end) <= new Date(start)) {
+            showToast("到期日必須晚於起始日喔！", "warning");
+            return;
+        }
+
         if (name && amt > 0 && start && end) {
             if(!state.sysSettings.subscriptions) state.sysSettings.subscriptions = [];
             state.sysSettings.subscriptions.push({ name, amount: amt, start, end });
@@ -924,8 +954,17 @@ function renderSubList() {
     (state.sysSettings.subscriptions || []).forEach((sub, idx) => {
         const li = document.createElement('li');
         li.className = "list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary";
-        li.innerHTML = `<div><span class="badge bg-warning text-dark me-2">每週 ${sub.amount}</span> 
-                        <span class="fw-bold">${sub.name}</span>
+        
+        const sStart = new Date(sub.start);
+        const sEnd = new Date(sub.end);
+        let dailyHint = "";
+        if (sEnd > sStart) {
+            const days = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
+            dailyHint = `(約 ${Math.round(sub.amount / days)}/日)`;
+        }
+
+        li.innerHTML = `<div><span class="badge bg-warning text-dark me-2">總額 ${sub.amount}</span> 
+                        <span class="fw-bold">${sub.name}</span> <span class="small text-muted">${dailyHint}</span>
                         <div class="small text-muted">${sub.start} ~ ${sub.end}</div></div>
                         <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeSub(${idx})">✖</button>`;
         list.appendChild(li);
