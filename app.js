@@ -6,11 +6,15 @@ const COLLECTION_SETTINGS = "LifeApp_Settings";
 
 let state = {
     currentUser: null, recordsData: [], isSubmitting: false, isManageMode: false,
+    activeReminderIdx: null,
     sysSettings: {
         coinRates: { money: 100, calorie: 100, learning: 30, habit: 10 },
         budgets: { day: 500, week: 3500, month: 15000 },
-        customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [] },
-        quotes: []
+        customCats: { expense: [], income: [], food: [], exercise: [], learning: [], habit: [], sleep: [], mood: [], extra_expense: [], extra_income: [], investment: [] },
+        quotes: [],
+        subscriptions: [],
+        fundPools: {}, 
+        reminders: []  
     }
 };
 
@@ -18,9 +22,12 @@ let chartInstances = { growth: null, finance: null, health: null };
 
 const DEFAULT_CAT_MAP = {
     'learning': [ {val: 'eng_micro', text: '🔤 英文微接觸'}, {val: 'read_page', text: '📖 翻開書本/文獻'}, {val: 'tech_doc', text: '💻 架構與技術實作'} ],
-    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 冥想'}, {val: 'clean', text: '🧹 整理環境'} ],
+    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 思考'}, {val: 'clean', text: '🧹 整理環境'} ],
     'expense': [ {val: 'food', text: '餐飲'}, {val: 'transport', text: '交通'}, {val: 'shopping', text: '購物'}, {val: 'entertainment', text: '娛樂'} ],
-    'income': [ {val: 'salary', text: '薪資'}, {val: 'bonus', text: '獎金'}, {val: 'invest', text: '投資'} ],
+    'income': [ {val: 'salary', text: '一般薪資'}, {val: 'bonus', text: '一般獎金'} ],
+    'extra_expense': [ {val: 'insurance', text: '保險/稅金'}, {val: 'medical', text: '醫療/意外'}, {val: 'large_buy', text: '大筆購物'} ],
+    'extra_income': [ {val: 'bonus_extra', text: '大筆獎金/紅利'}, {val: 'passive', text: '利息/被動收入'} ],
+    'investment': [ {val: 'stock', text: '股票/ETF'}, {val: 'saving', text: '定存/儲蓄帳戶'} ],
     'food': [ {val: 'meal', text: '正餐'}, {val: 'snack', text: '零食/甜點'}, {val: 'drink', text: '飲料'} ],
     'exercise': [ {val: 'cardio', text: '有氧'}, {val: 'weight', text: '重訓'}, {val: 'stretch', text: '伸展/瑜珈'} ],
     'sleep': [ {val: 'night', text: '主睡眠'}, {val: 'nap', text: '午休小睡'} ],
@@ -164,7 +171,7 @@ function updateFormUI() {
     } else {
         document.getElementById('amount-container').style.display = 'block';
         amtInput.setAttribute('required', 'true');
-        amtInput.value = "";
+        if (state.activeReminderIdx === null) amtInput.value = "";
     }
 }
 const typeSelectEl = document.getElementById('input-type');
@@ -175,6 +182,8 @@ function updateUI() {
     renderAnalyses(); 
     renderHeatmap(); 
     renderTables();
+    renderFundPool(); 
+    renderReminders(); 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 }
 
@@ -184,6 +193,7 @@ function updateStats() {
     document.querySelectorAll('.range-label').forEach(el => el.innerText = bounds.label);
     
     let tExpense = 0, tIncome = 0, tFood = 0, tBurn = 0, tLearning = 0, tHabit = 0;
+    let tExtraExp = 0, tExtraInc = 0, tInvest = 0;
     let activeDates = new Set();
 
     state.recordsData.forEach(r => {
@@ -195,12 +205,42 @@ function updateStats() {
             if (r.type === 'exercise') tBurn += r.amount;
             if (r.type === 'learning') tLearning += r.amount;
             if (r.type === 'habit') tHabit += r.amount;
+            
+            if (r.type === 'extra_expense') tExtraExp += r.amount;
+            if (r.type === 'extra_income') tExtraInc += r.amount;
+            if (r.type === 'investment') tInvest += r.amount;
         }
     });
 
+    let tSub = 0;
+    if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
+        const bStart = new Date(bounds.start);
+        const bEnd = new Date(bounds.end);
+        state.sysSettings.subscriptions.forEach(sub => {
+            const sStart = new Date(sub.start);
+            const sEnd = new Date(sub.end);
+            const overlapStart = bStart > sStart ? bStart : sStart;
+            const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
+            if(overlapStart <= overlapEnd) {
+                const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                tSub += (sub.amount / 7) * days; 
+            }
+        });
+    }
+    tSub = Math.round(tSub);
+
     let budget = state.sysSettings.budgets[rangeType] || 0;
     if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
-    let balance = (budget + tIncome) - tExpense;
+
+    if (rangeType === 'month') {
+        const targetMonth = bounds.start.substring(0, 7); 
+        if (state.sysSettings.fundPools && state.sysSettings.fundPools[targetMonth]) {
+            const poolSum = state.sysSettings.fundPools[targetMonth].reduce((acc, curr) => acc + curr.amount, 0);
+            if (poolSum > 0) budget = poolSum; 
+        }
+    }
+    
+    let balance = (budget + tIncome) - tExpense - tSub;
     
     const savingEl = document.getElementById('stat-saving');
     if(savingEl) {
@@ -210,6 +250,14 @@ function updateStats() {
     
     if(document.getElementById('stat-expense')) document.getElementById('stat-expense').innerText = tExpense.toLocaleString();
     if(document.getElementById('stat-budget')) document.getElementById('stat-budget').innerText = budget.toLocaleString();
+    if(document.getElementById('stat-sub')) document.getElementById('stat-sub').innerText = tSub.toLocaleString();
+
+    if(document.getElementById('ana-extra-net')) {
+        let extNet = tExtraInc - tExtraExp;
+        document.getElementById('ana-extra-net').innerText = extNet >= 0 ? `+${extNet.toLocaleString()}` : extNet.toLocaleString();
+        document.getElementById('ana-extra-net').className = `mb-0 ${extNet >= 0 ? 'val-income' : 'val-expense'}`;
+    }
+    if(document.getElementById('ana-invest')) document.getElementById('ana-invest').innerText = tInvest.toLocaleString();
 
     const deficit = tBurn - tFood; 
     const calorieEl = document.getElementById('stat-calorie');
@@ -236,6 +284,164 @@ function updateStats() {
     }
 }
 
+function getActiveMonthString() {
+    const bounds = getRangeBounds();
+    return bounds.start.substring(0, 7); 
+}
+
+function renderFundPool() {
+    const mStr = getActiveMonthString();
+    const lbl = document.getElementById('fp-month-label');
+    if(lbl) lbl.innerText = mStr;
+    
+    const list = document.getElementById('fp-list');
+    if(!list) return;
+    list.innerHTML = "";
+    
+    let total = 0;
+    const pool = state.sysSettings.fundPools?.[mStr] || [];
+    
+    pool.forEach((item, idx) => {
+        total += item.amount;
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center px-2 py-1 border-secondary bg-dark text-light";
+        li.innerHTML = `
+            <div>
+                <span class="fw-bold me-2">${item.name}</span>
+                <span class="text-success small">+${item.amount.toLocaleString()}</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeFundItem('${mStr}', ${idx})">✖</button>
+        `;
+        list.appendChild(li);
+    });
+
+    if (pool.length === 0) {
+        list.innerHTML = `<li class="list-group-item px-2 py-3 text-center text-muted border-secondary bg-dark">尚未設定本月資金池，系統將使用預設月預算</li>`;
+    }
+
+    const totalEl = document.getElementById('fp-total-amount');
+    if(totalEl) totalEl.innerText = total.toLocaleString();
+}
+
+const btnAddFp = document.getElementById('btn-add-fp');
+if(btnAddFp) {
+    btnAddFp.addEventListener('click', async () => {
+        const mStr = getActiveMonthString();
+        const name = document.getElementById('fp-name').value.trim();
+        const amt = parseInt(document.getElementById('fp-amount').value);
+        
+        if (name && amt > 0) {
+            if(!state.sysSettings.fundPools) state.sysSettings.fundPools = {};
+            if(!state.sysSettings.fundPools[mStr]) state.sysSettings.fundPools[mStr] = [];
+            
+            state.sysSettings.fundPools[mStr].push({ name, amount: amt });
+            document.getElementById('fp-name').value = "";
+            document.getElementById('fp-amount').value = "";
+            
+            await saveSettingsData();
+            updateUI(); 
+        } else {
+            showToast("請輸入名稱與有效金額", "warning");
+        }
+    });
+}
+
+window.removeFundItem = async (mStr, idx) => {
+    state.sysSettings.fundPools[mStr].splice(idx, 1);
+    await saveSettingsData();
+    updateUI();
+};
+
+function renderReminders() {
+    const list = document.getElementById('reminder-list');
+    if(!list) return;
+    list.innerHTML = "";
+    
+    const reminders = state.sysSettings.reminders || [];
+    reminders.sort((a, b) => new Date(a.date) - new Date(b.date)); 
+    
+    reminders.forEach((rem, idx) => {
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary p-2 mb-1 rounded";
+        const icon = rem.type === 'expense' ? '💸' : '🍱';
+        const color = rem.type === 'expense' ? 'text-warning' : 'text-info';
+        
+        li.innerHTML = `
+            <div class="d-flex flex-column flex-grow-1 me-2">
+                <div class="fw-bold"><span class="me-1">${icon}</span> ${rem.text}</div>
+                <div class="small d-flex gap-2 text-muted">
+                    <span>📅 ${rem.date || '無日期'}</span>
+                    <span class="${color} fw-bold">${rem.amount}</span>
+                </div>
+            </div>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-primary py-1 px-2 fw-bold shadow-sm" onclick="fulfillReminder(${idx})" title="轉換為實際記帳">✍️ 記帳</button>
+                <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="removeReminder(${idx})" title="刪除">✖</button>
+            </div>
+        `;
+        list.appendChild(li);
+    });
+
+    if(reminders.length === 0) {
+        list.innerHTML = `<li class="list-group-item text-center text-muted bg-dark border-0 py-3">目前沒有預期追蹤事項</li>`;
+    }
+}
+
+const btnAddReminder = document.getElementById('btn-add-reminder');
+if(btnAddReminder) {
+    btnAddReminder.addEventListener('click', async () => {
+        const text = document.getElementById('rem-text').value.trim();
+        const type = document.getElementById('rem-type').value;
+        const amount = parseFloat(document.getElementById('rem-amount').value);
+        const date = document.getElementById('rem-date').value || getLocalYMD();
+
+        if (text && amount > 0) {
+            if(!state.sysSettings.reminders) state.sysSettings.reminders = [];
+            state.sysSettings.reminders.push({ text, type, amount, date });
+            
+            document.getElementById('rem-text').value = "";
+            document.getElementById('rem-amount').value = "";
+            document.getElementById('rem-date').value = "";
+            
+            await saveSettingsData();
+            renderReminders();
+        } else {
+            showToast("請填寫項目名稱與有效數值", "warning");
+        }
+    });
+}
+
+window.removeReminder = async (idx) => {
+    state.sysSettings.reminders.splice(idx, 1);
+    await saveSettingsData();
+    renderReminders();
+};
+
+window.fulfillReminder = (idx) => {
+    const rem = state.sysSettings.reminders[idx];
+    
+    const dateInput = document.getElementById('input-date');
+    if(dateInput && rem.date) dateInput.value = rem.date;
+    
+    const typeSelect = document.getElementById('input-type');
+    typeSelect.value = rem.type;
+    updateFormUI(); 
+    
+    state.activeReminderIdx = idx;
+    
+    document.getElementById('input-amount').value = rem.amount;
+    document.getElementById('input-note').value = rem.text;
+    
+    new bootstrap.Modal(document.getElementById('recordModal')).show();
+};
+
+document.getElementById('recordModal').addEventListener('hidden.bs.modal', () => {
+    state.activeReminderIdx = null;
+    document.getElementById('input-amount').value = "";
+    document.getElementById('input-note').value = "";
+});
+
+
 function renderAnalyses() {
     const rangeType = rangeSelect ? rangeSelect.value : 'day';
     const bounds = getRangeBounds();
@@ -260,7 +466,7 @@ function renderAnalyses() {
     if(document.getElementById('ana-habit-total')) document.getElementById('ana-habit-total').innerText = `${habitCount} 次`;
     drawChart('chart-growth', 'growth', '累積成長 (次)', growthLabels, growthData, gTooltips, '#39c5bb', 'rgba(57,197,187,0.1)');
 
-    // 2. 💳 財務分析 (Finance)
+    // 2. 💳 財務分析 (Finance) 
     let expenses = {}, topCat = "無", topAmt = 0;
     let finLabels = [], finData = [], fTooltips = [];
     
@@ -274,13 +480,13 @@ function renderAnalyses() {
             currentBalance -= r.amount;
             finLabels.push(r.date.substring(5));
             finData.push(currentBalance);
-            fTooltips.push(`支出: ${r.amount} (${r.categoryText})`);
+            fTooltips.push(`日常支出: ${r.amount} (${r.categoryText})`);
         }
         if (r.type === 'income') {
             currentBalance += r.amount;
             finLabels.push(r.date.substring(5));
             finData.push(currentBalance);
-            fTooltips.push(`收入: ${r.amount} (${r.categoryText})`);
+            fTooltips.push(`日常收入: ${r.amount} (${r.categoryText})`);
         }
     });
     const anaNetWorth = document.getElementById('ana-net-worth');
@@ -289,7 +495,7 @@ function renderAnalyses() {
         anaNetWorth.className = `mb-0 ${currentBalance >= 0 ? 'val-income' : 'val-expense'}`;
     }
     if(document.getElementById('ana-top-expense')) document.getElementById('ana-top-expense').innerText = `${topCat}`;
-    drawChart('chart-finance', 'finance', '可用結餘', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
+    drawChart('chart-finance', 'finance', '日常可用結餘', finLabels, finData, fTooltips, '#58a6ff', 'rgba(88,166,255,0.1)');
 
     // 3. 💪 健康分析 (Health)
     let hlLabels = [], healData = [], hTooltips = [], totalDeficit = 0;
@@ -353,7 +559,6 @@ function renderAnalyses() {
 }
 
 function drawChart(canvasId, instanceKey, label, labels, data, tooltips, borderColor, bgColor) {
-    // 💡 防呆：如果 Chart 沒載入，或是找不到 HTML 標籤（PWA 快取卡住），直接中斷不報錯
     if (typeof Chart === 'undefined') return;
     const canvasEl = document.getElementById(canvasId);
     if (!canvasEl) return;
@@ -388,7 +593,6 @@ function drawChart(canvasId, instanceKey, label, labels, data, tooltips, borderC
     });
 }
 
-// 💡 匯出 CSV 邏輯
 const btnExport = document.getElementById('btn-export-csv');
 if (btnExport) {
     btnExport.addEventListener('click', () => {
@@ -440,6 +644,9 @@ function renderTables() {
     const typeMap = {
         'expense': { icon: '💸', color: 'val-expense', unit: '' },
         'income': { icon: '💰', color: 'val-income', unit: '' },
+        'extra_expense': { icon: '🏦', color: 'val-expense', unit: '' },
+        'extra_income': { icon: '💵', color: 'val-income', unit: '' }, 
+        'investment': { icon: '📈', color: 'val-growth', unit: '' }, 
         'food': { icon: '🍱', color: 'val-food', unit: ' 大卡' },
         'exercise': { icon: '🏃', color: 'val-exercise', unit: ' 大卡' },
         'learning': { icon: '📚', color: 'val-growth', unit: ' 次' },
@@ -450,7 +657,7 @@ function renderTables() {
 
     state.recordsData.forEach(r => {
         const conf = typeMap[r.type];
-        let displayVal = (r.type === 'expense' || r.type === 'income') ? r.amount.toLocaleString() : r.amount;
+        let displayVal = (['expense', 'income', 'extra_expense', 'extra_income', 'investment'].includes(r.type)) ? r.amount.toLocaleString() : r.amount;
         let noteStr = r.note ? `<br><small class="text-muted">${r.note}</small>` : "";
         if (r.type === 'mood') displayVal = ['😭', '😫', '😐', '🙂', '🤩'][r.amount - 1] || r.amount;
 
@@ -470,7 +677,7 @@ function renderTables() {
             </tr>
         `;
         
-        if (r.type === 'expense' || r.type === 'income') finHtml += tr;
+        if (['expense', 'income', 'extra_expense', 'extra_income', 'investment'].includes(r.type)) finHtml += tr;
         else if (r.type === 'food' || r.type === 'exercise') healHtml += tr;
         else if (r.type === 'learning' || r.type === 'habit') growHtml += tr;
         else lifeHtml += tr;
@@ -520,7 +727,6 @@ function renderHeatmap() {
     setTimeout(() => { document.getElementById('heatmap-scroller').scrollLeft = document.getElementById('heatmap-scroller').scrollWidth; }, 100);
 }
 
-// 💡 戰報支援每日目標與變數宣告修復
 const btnReport = document.getElementById('btn-generate-report');
 if(btnReport) {
     btnReport.addEventListener('click', () => {
@@ -544,6 +750,23 @@ if(btnReport) {
             }
         });
 
+        let tSub = 0;
+        if(state.sysSettings.subscriptions) {
+            const bStart = new Date(bounds.start);
+            const bEnd = new Date(bounds.end);
+            state.sysSettings.subscriptions.forEach(sub => {
+                const sStart = new Date(sub.start);
+                const sEnd = new Date(sub.end);
+                const overlapStart = bStart > sStart ? bStart : sStart;
+                const overlapEnd = bEnd < sEnd ? bEnd : sEnd;
+                if(overlapStart <= overlapEnd) {
+                    const days = Math.ceil((overlapEnd - overlapStart) / 86400000) + 1;
+                    tSub += (sub.amount / 7) * days;
+                }
+            });
+        }
+        tSub = Math.round(tSub);
+
         let slackDays = bounds.totalDays - Object.keys(dayStats).length; 
         Object.values(dayStats).forEach(ds => {
             if (ds.goodDeeds === 0 && (ds.expense > 2000 || ds.food > 2500)) slackDays++;
@@ -553,7 +776,7 @@ if(btnReport) {
         let budget = state.sysSettings.budgets[rangeType] || 0;
         if (rangeType === 'custom') budget = state.sysSettings.budgets.day * bounds.totalDays;
         
-        let balance = (budget + tIncome) - tExpense;
+        let balance = (budget + tIncome) - tExpense - tSub;
         let calorieDeficit = tBurn - tFood;
         let lifeCoin = 0;
 
@@ -567,7 +790,6 @@ if(btnReport) {
         const titleEl = document.getElementById('report-tier-title');
         card.className = "tier-card"; 
         
-        // 💡 修復變數未宣告的 Bug
         let tierClass, titleClass, titleText; 
         
         let coinTarget = 100;
@@ -607,8 +829,17 @@ async function loadSettings() {
         const data = docSnap.data();
         state.sysSettings.budgets = { ...state.sysSettings.budgets, ...(data.budgets || {}) };
         state.sysSettings.coinRates = { ...state.sysSettings.coinRates, ...(data.coinRates || {}) };
-        state.sysSettings.customCats = { ...state.sysSettings.customCats, ...(data.customCats || {}) };
+        
+        if(data.customCats) {
+            Object.keys(data.customCats).forEach(k => {
+                if(!state.sysSettings.customCats[k]) state.sysSettings.customCats[k] = [];
+                state.sysSettings.customCats[k] = data.customCats[k];
+            });
+        }
         state.sysSettings.quotes = data.quotes || [];
+        state.sysSettings.subscriptions = data.subscriptions || []; 
+        state.sysSettings.fundPools = data.fundPools || {}; 
+        state.sysSettings.reminders = data.reminders || []; 
     }
     updateSettingsModalUI();
 }
@@ -631,6 +862,7 @@ function updateSettingsModalUI() {
     }
     renderCustomCatList();
     renderQuoteList();
+    renderSubList(); 
 }
 
 const btnSaveSettings = document.getElementById('btn-save-settings');
@@ -653,6 +885,50 @@ if(btnSaveSettings) {
         if(document.getElementById('reportModal') && document.getElementById('reportModal').classList.contains('show')) {
             document.getElementById('btn-generate-report').click();
         }
+    });
+}
+
+const btnAddSub = document.getElementById('btn-add-sub');
+if(btnAddSub) {
+    btnAddSub.addEventListener('click', async () => {
+        const name = document.getElementById('set-sub-name').value.trim();
+        const amt = parseFloat(document.getElementById('set-sub-amount').value);
+        const start = document.getElementById('set-sub-start').value;
+        const end = document.getElementById('set-sub-end').value;
+        if (name && amt > 0 && start && end) {
+            if(!state.sysSettings.subscriptions) state.sysSettings.subscriptions = [];
+            state.sysSettings.subscriptions.push({ name, amount: amt, start, end });
+            
+            document.getElementById('set-sub-name').value = "";
+            document.getElementById('set-sub-amount').value = "";
+            await saveSettingsData();
+            renderSubList();
+            updateUI();
+        } else {
+            showToast("請完整填寫訂閱資料與起訖日", "warning");
+        }
+    });
+}
+
+window.removeSub = async (index) => {
+    state.sysSettings.subscriptions.splice(index, 1);
+    await saveSettingsData();
+    renderSubList();
+    updateUI();
+};
+
+function renderSubList() {
+    const list = document.getElementById('custom-sub-list');
+    if(!list) return;
+    list.innerHTML = "";
+    (state.sysSettings.subscriptions || []).forEach((sub, idx) => {
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary";
+        li.innerHTML = `<div><span class="badge bg-warning text-dark me-2">每週 ${sub.amount}</span> 
+                        <span class="fw-bold">${sub.name}</span>
+                        <div class="small text-muted">${sub.start} ~ ${sub.end}</div></div>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeSub(${idx})">✖</button>`;
+        list.appendChild(li);
     });
 }
 
@@ -757,7 +1033,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// 💡 將 UI 更新移出 try...catch，避免真正的 UI 錯誤被當作 Firebase 錯誤
 async function fetchInitialData() {
     if (!state.currentUser) return;
     try {
@@ -829,6 +1104,13 @@ if(formRecord) {
             
             state.recordsData.push(newRecord);
             state.recordsData.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
+            
+            if (state.activeReminderIdx !== null && state.activeReminderIdx !== undefined) {
+                state.sysSettings.reminders.splice(state.activeReminderIdx, 1);
+                state.activeReminderIdx = null; 
+                saveSettingsData(); 
+            }
+            
             updateUI();
             
             document.getElementById('input-amount').value = "";
