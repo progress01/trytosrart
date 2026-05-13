@@ -330,7 +330,7 @@ function renderFundPool() {
     const totalEl = document.getElementById('fp-total-amount');
     if(totalEl) totalEl.innerText = total.toLocaleString();
 
-    // 💡 結算本月【總互動結果】與【堆疊水位條】
+    // 💡 結算本月【總互動結果】
     let mInc = 0, mExp = 0, mExtraInc = 0, mExtraExp = 0, mInvest = 0;
     state.recordsData.forEach(r => {
         if (r.date.startsWith(mStr)) {
@@ -342,30 +342,33 @@ function renderFundPool() {
         }
     });
 
+    // 換算本月訂閱總額
     let mSub = 0;
     const mParts = mStr.split('-');
-    const y = parseInt(mParts[0]);
-    const m = parseInt(mParts[1]) - 1; 
-    const mStart = new Date(y, m, 1);
-    const mEnd = new Date(y, m + 1, 0, 23, 59, 59);
+    if (mParts.length >= 2) {
+        const y = parseInt(mParts[0]);
+        const m = parseInt(mParts[1]) - 1; 
+        const mStart = new Date(y, m, 1);
+        const mEnd = new Date(y, m + 1, 0, 23, 59, 59);
 
-    if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
-        state.sysSettings.subscriptions.forEach(sub => {
-            const sStart = new Date(sub.start);
-            const sEnd = new Date(sub.end);
-            
-            if (sEnd > sStart) {
-                const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
-                const dailyRate = sub.amount / totalSubDays;
-                const overlapStart = mStart > sStart ? mStart : sStart;
-                const overlapEnd = mEnd < sEnd ? mEnd : sEnd;
+        if(state.sysSettings.subscriptions && state.sysSettings.subscriptions.length > 0) {
+            state.sysSettings.subscriptions.forEach(sub => {
+                const sStart = new Date(sub.start);
+                const sEnd = new Date(sub.end);
                 
-                if(overlapStart <= overlapEnd) {
-                    const overlapDays = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
-                    mSub += (dailyRate * overlapDays); 
+                if (sEnd > sStart) {
+                    const totalSubDays = Math.ceil((sEnd - sStart) / (1000 * 60 * 60 * 24)) + 1;
+                    const dailyRate = sub.amount / totalSubDays;
+                    const overlapStart = mStart > sStart ? mStart : sStart;
+                    const overlapEnd = mEnd < sEnd ? mEnd : sEnd;
+                    
+                    if(overlapStart <= overlapEnd) {
+                        const overlapDays = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                        mSub += (dailyRate * overlapDays); 
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     mSub = Math.round(mSub);
 
@@ -375,6 +378,7 @@ function renderFundPool() {
     let largeOut = mExtraExp + mInvest;          
     let finalNet = totalIn - dailyOut - largeOut;
 
+    // 計算水位條百分比
     let mathTotal = totalIn > (dailyOut + largeOut) ? totalIn : (dailyOut + largeOut);
     let mathTotalSafe = mathTotal === 0 ? 1 : mathTotal; 
     
@@ -383,12 +387,17 @@ function renderFundPool() {
     let pctDaily = (dailyOut / mathTotalSafe) * 100;
     let pctLarge = (largeOut / mathTotalSafe) * 100;
 
+    // 💡 確保摘要面板渲染在正確位置 (fp-list 下方)
     let summaryContainer = document.getElementById('fp-interaction-summary');
     if (!summaryContainer) {
         summaryContainer = document.createElement('div');
         summaryContainer.id = 'fp-interaction-summary';
-        summaryContainer.className = 'mt-3 pt-2 border-top border-secondary text-start';
-        totalEl.parentNode.appendChild(summaryContainer);
+        summaryContainer.className = 'mt-3 p-3 bg-dark border border-secondary rounded text-start';
+        // 將面板插入到 ul 清單的下方，避免在警示框內跑版
+        const fpList = document.getElementById('fp-list');
+        if (fpList) {
+            fpList.insertAdjacentElement('afterend', summaryContainer);
+        }
     }
     
     summaryContainer.innerHTML = `
@@ -401,7 +410,7 @@ function renderFundPool() {
             <span class="${(mExtraInc - largeOut) >= 0 ? 'text-success' : 'text-danger'}">${(mExtraInc - largeOut) >= 0 ? '+' : ''}${(mExtraInc - largeOut).toLocaleString()}</span>
         </div>
 
-        <div class="progress mt-2 mb-3 shadow-sm" style="height: 12px; background-color: #2d333b; border-radius: 6px; overflow: hidden;">
+        <div class="progress mt-2 mb-3 shadow-sm" style="height: 12px; background-color: #1a1e24; border-radius: 6px; overflow: hidden; border: 1px solid #30363d;">
             <div class="progress-bar bg-success" style="width: ${pctNet}%" title="可用餘額"></div>
             <div class="progress-bar bg-warning" style="width: ${pctDaily}%; opacity: 0.9;" title="日常消耗"></div>
             <div class="progress-bar bg-danger" style="width: ${pctLarge}%; opacity: 0.8;" title="大額/投資消耗"></div>
