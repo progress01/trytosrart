@@ -22,14 +22,14 @@ let chartInstances = { growth: null, finance: null, health: null };
 
 const DEFAULT_CAT_MAP = {
     'learning': [ {val: 'eng_micro', text: '🔤 英文微接觸'}, {val: 'read_page', text: '📖 翻開書本/文獻'}, {val: 'tech_doc', text: '💻 架構與技術實作'} ],
-    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 冥想'}, {val: 'clean', text: '🧹 整理環境'} ],
+    'habit': [ {val: 'water', text: '💧 喝水達標'}, {val: 'meditate', text: '🧘 思考'}, {val: 'clean', text: '🧹 整理環境'} ],
     'expense': [ {val: 'food', text: '餐飲'}, {val: 'transport', text: '交通'}, {val: 'shopping', text: '購物'}, {val: 'entertainment', text: '娛樂'} ],
     'income': [ {val: 'salary', text: '一般薪資'}, {val: 'bonus', text: '一般獎金'} ],
     'extra_expense': [ {val: 'insurance', text: '保險/稅金'}, {val: 'medical', text: '醫療/意外'}, {val: 'large_buy', text: '大筆購物'} ],
     'extra_income': [ {val: 'bonus_extra', text: '大筆獎金/紅利'}, {val: 'passive', text: '利息/被動收入'} ],
     'investment': [ {val: 'stock', text: '股票/ETF'}, {val: 'saving', text: '定存/儲蓄帳戶'} ],
     'food': [ {val: 'meal', text: '正餐'}, {val: 'snack', text: '零食/甜點'}, {val: 'drink', text: '飲料'} ],
-    'exercise': [ {val: 'cardio', text: '有氧'}, {val: 'weight', text: '重訓'}, {val: 'stretch', text: '伸展/瑜珈'} ],
+    'exercise': [ {val: 'cardio', text: '有氧'}, {val: 'weight', text: '重訓'}, {val: 'stretch', text: '伸展'} ],
     'sleep': [ {val: 'night', text: '主睡眠'}, {val: 'nap', text: '午休小睡'} ],
     'mood': [ {val: '5', text: '🤩 充滿活力 (5分)'}, {val: '4', text: '🙂 穩定順暢 (4分)'}, {val: '3', text: '😐 平淡一般 (3分)'}, {val: '2', text: '😫 疲憊低迷 (2分)'}, {val: '1', text: '😭 徹底耗盡 (1分)'} ]
 };
@@ -95,6 +95,11 @@ window.refreshQuote = () => {
     const randBg = BG_IMAGES[Math.floor(Math.random() * BG_IMAGES.length)];
     document.getElementById('quote-card').style.backgroundImage = `url('${randBg}')`;
 };
+
+const quoteCardEl = document.getElementById('quote-card');
+if (quoteCardEl) {
+    quoteCardEl.addEventListener('click', window.refreshQuote);
+}
 
 const rangeSelect = document.getElementById('overview-range');
 const customStart = document.getElementById('custom-start-date');
@@ -1108,13 +1113,19 @@ if(btnAddQuote) {
     btnAddQuote.addEventListener('click', async () => {
         const quoteInput = document.getElementById('set-custom-quote');
         const text = quoteInput.value.trim();
+        
+        if(!state.sysSettings.quotes) state.sysSettings.quotes = [];
+
         if (text && !state.sysSettings.quotes.includes(text)) {
-            if(!state.sysSettings.quotes) state.sysSettings.quotes = [];
             state.sysSettings.quotes.push(text);
             quoteInput.value = "";
             await saveSettingsData();
             renderQuoteList();
             window.refreshQuote(); 
+        } else if (!text) {
+            showToast("請輸入金句內容", "warning");
+        } else {
+            showToast("這句已經在清單中囉", "warning");
         }
     });
 }
