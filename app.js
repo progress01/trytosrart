@@ -35,11 +35,18 @@ const DEFAULT_CAT_MAP = {
 };
 
 const DEFAULT_QUOTES = [
-    "不管讀多深、讀多久，只要啟動了閱讀行為，就是前進。 -- 微學習心法",
-    "別因為一次的失誤，就否定了之前所有的努力。 -- 覺察日記",
-    "真正的自律，是允許自己偶爾的脆弱，然後繼續前進。 -- 心理學",
-    "系統架構的優美，在於把複雜藏在看不見的地方，把簡單留給自己。 -- 開發者日常",
-    "允許偶爾的空白，找回節奏比維持完美更重要。 -- 習慣心理學"
+    "To see the world, things dangerous to come to, to see behind walls, draw closer, to find each other, and to feel. That is the purpose of life. -- 白日夢冒險王",
+    "You got a dream... You gotta protect it. People can't do somethin' themselves, they wanna tell you you can't do it. If you want somethin', go get it. Period. -- 當幸福來敲門",
+    "Yesterday is history, tomorrow is a mystery, but today is a gift. That is why it is called the present. -- 功夫熊貓",
+    "But it ain't about how hard you hit. It's about how hard you can get hit and keep moving forward. -- 洛基：勇者無懼",
+    "Hope is a good thing, maybe the best of things, and no good thing ever dies. -- 刺激1995",
+    "逃げるは恥だが役に立つ。(逃避雖可恥但有用。) -- 逃避雖可恥但有用",
+    "Money is the most universal and most efficient system of mutual trust ever devised. -- 人類大歷史",
+    "You can't go back and change the beginning, but you can start where you are and change the ending. -- 獅子、女巫、魔衣櫥",
+    "인생은 속도가 아니라 방향이다. (人生不是速度，而是方向。) -- 機智醫生生活",
+    "우리에게는 내일이 있잖아. (我們不是還有明天嗎。) -- 請回答1988",
+    "I am not afraid of storms, for I am learning how to sail my ship. -- 小婦人",
+    "Life was like a box of chocolates. You never know what you're gonna get. -- 阿甘正傳"
 ];
 
 const BG_IMAGES = [
